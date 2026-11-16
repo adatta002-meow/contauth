@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Notes{% endblock %}
+{% block content %}
+<h1>Notes</h1>
+<div class="panel">
+  <form method="post">
+    <input type="hidden" name="csrf" value="{{ cur.csrf }}">
+    <label for="t">Title</label><input type="text" id="t" name="title" maxlength="200" required>
+    <label for="b">Note</label><textarea id="b" name="body" required></textarea>
+    <button type="submit">Save note</button>
+  </form>
+</div>
+<h2>Saved</h2>
+{% for n in notes %}
+  <div class="panel" style="margin-bottom:.75rem"><strong>{{ n.title }}</strong> <span class="muted mono" style="font-size:.8rem">{{ n.created_at|ts }}</span><p style="white-space:pre-wrap;margin:.5rem 0 0">{{ n.body }}</p></div>
+{% else %}
+  <p class="muted">No notes yet.</p>
+{% endfor %}
+{% endblock %}

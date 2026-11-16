@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<h1>Welcome, {{ cur.username }}</h1>
+<div class="grid">
+  <div class="panel stat"><div class="n">{{ cur.risk|round|int }}</div><div class="l">Current risk score (0–100)</div></div>
+  <div class="panel stat"><div class="n"><span class="tier {{ cur.tier }}">{{ cur.tier }}</span></div><div class="l">Trust tier</div></div>
+  <div class="panel stat"><div class="n">{{ cur.windows_scored }}</div><div class="l">Windows scored this session</div></div>
+</div>
+
+<h2>Your behavioural profile</h2>
+<div class="panel">
+  {% if profile %}
+    <p>Personal profile active, trained on <strong>{{ profile.n_windows }}</strong> windows of your own activity (last updated {{ profile.trained_at|ts }}). It keeps refreshing as you use the site.</p>
+  {% else %}
+    <p>Learning how you work: <strong>{{ enrolled }}</strong> of {{ need }} activity windows collected. Until then, sessions are checked against a general human-behaviour baseline.</p>
+    <div class="progress"><div style="width: {{ (100 * enrolled / need)|round|int if enrolled < need else 100 }}%"></div></div>
+    <p class="muted">Each window is {{ (window_ms/1000)|int }} seconds of normal use: typing notes, moving around, scrolling.</p>
+  {% endif %}
+</div>
+
+<h2>What's being measured</h2>
+<div class="panel muted">
+  Typing rhythm (gaps between key presses, not the keys), pointer speed and travel, click spacing, scrolling, and idle pauses. These are summarised every {{ (window_ms/1000)|int }} seconds and scored. Low risk keeps the session open; high risk asks for your password; critical risk closes the session.
+</div>
+{% endblock %}

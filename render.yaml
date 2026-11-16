@@ -1,0 +1,19 @@
+# Render Blueprint: one free web service built from the Dockerfile.
+# In Render: New > Blueprint > pick this repository. It asks for CA_ADMIN_PASSWORD.
+services:
+  - type: web
+    name: contauth
+    runtime: docker
+    plan: free
+    healthCheckPath: /login
+    envVars:
+      - key: CA_SECRET_KEY
+        generateValue: true        # random, stable across restarts
+      - key: CA_BEHIND_PROXY
+        value: "true"              # real client IPs from Render's proxy
+      - key: CA_COOKIE_SECURE
+        value: "true"              # Render serves HTTPS
+      - key: CA_ADMIN_USER
+        value: admin
+      - key: CA_ADMIN_PASSWORD
+        sync: false                # you type it in during setup; never stored in git

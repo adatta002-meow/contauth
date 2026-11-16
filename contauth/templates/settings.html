@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block mainclass %}narrow{% endblock %}
+{% block content %}
+<div class="panel">
+  <h1>Change password</h1>
+  <p class="muted">Protected page: only reachable while your session trust is low or medium risk.</p>
+  <form method="post">
+    <input type="hidden" name="csrf" value="{{ cur.csrf }}">
+    <label for="o">Current password</label><input type="password" id="o" name="old" autocomplete="current-password" required>
+    <label for="n">New password</label><input type="password" id="n" name="new" autocomplete="new-password" required minlength="8">
+    <button type="submit">Update password</button>
+  </form>
+</div>
+{% endblock %}

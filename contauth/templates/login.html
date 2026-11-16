@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block mainclass %}narrow{% endblock %}
+{% block content %}
+{% if reason == 'terminated' %}<div class="flash warn">Your session was closed by a security control. If this was you, sign in again.</div>{% endif %}
+{% if reason == 'expired' %}<div class="flash">Your session has ended. Please sign in again.</div>{% endif %}
+<div class="panel">
+  <h1>Sign in</h1>
+  <form method="post">
+    <label for="u">Username</label><input type="text" id="u" name="username" autocomplete="username" required autofocus>
+    <label for="p">Password</label><input type="password" id="p" name="password" autocomplete="current-password" required>
+    <input type="hidden" name="fp" id="fp">
+    <button type="submit">Sign in</button>
+  </form>
+  <p class="muted">No account? <a href="{{ url_for('register') }}">Register</a></p>
+  <p class="muted" style="font-size:.8rem">After sign-in, this site measures the timing of your typing, pointer and scrolling (never what you type) to keep confirming it is still you.</p>
+</div>
+<script>
+  // Coarse device fingerprint: hashed server-side together with the user agent.
+  document.getElementById("fp").value = [screen.width + "x" + screen.height, screen.colorDepth,
+    Intl.DateTimeFormat().resolvedOptions().timeZone, navigator.language, navigator.platform,
+    navigator.hardwareConcurrency || 0].join("|");
+</script>
+{% endblock %}

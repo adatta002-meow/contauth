@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Admin{% endblock %}
+{% block content %}
+<h1>Security operations</h1>
+{% include "admin/_nav.html" %}
+<div class="grid" id="counts">
+  <div class="panel stat"><div class="n" data-k="active">{{ data.counts.active }}</div><div class="l">Live sessions</div></div>
+  <div class="panel stat"><div class="n" data-k="step_up">{{ data.counts.step_up }}</div><div class="l">Awaiting step-up</div></div>
+  <div class="panel stat"><div class="n" data-k="terminated_24h">{{ data.counts.terminated_24h }}</div><div class="l">Terminated (24 h)</div></div>
+  <div class="panel stat"><div class="n" data-k="windows_24h">{{ data.counts.windows_24h }}</div><div class="l">Windows scored (24 h)</div></div>
+  <div class="panel stat"><div class="n" data-k="profiles">{{ data.counts.profiles }}</div><div class="l">Enrolled profiles</div></div>
+</div>
+
+<h2>Sessions <span class="muted" style="font-weight:400;font-size:.8rem">· refreshes every 5 s</span></h2>
+<div class="panel scroll-x">
+  <table>
+    <thead><tr><th>User</th><th>Status</th><th>Tier</th><th>Risk</th><th>Risk trend</th><th>Windows</th><th>Step-ups</th><th>IP</th><th>Last seen</th></tr></thead>
+    <tbody id="sessions"></tbody>
+  </table>
+</div>
+
+<h2>Latest security events</h2>
+<div class="panel scroll-x">
+  <table>
+    <thead><tr><th>Time</th><th>Event</th><th>User</th><th>Detail</th></tr></thead>
+    <tbody id="events"></tbody>
+  </table>
+</div>
+
+<script>
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = (t) => t ? new Date(t * 1000).toLocaleTimeString() : "—";
+function spark(vals) {
+  if (!vals.length) return '<span class="muted">—</span>';
+  const w = 120, h = 26, n = Math.max(vals.length - 1, 1);
+  const pts = vals.map((v, i) => `${(i / n * w).toFixed(1)},${(h - v / 100 * h).toFixed(1)}`).join(" ");
+  const last = vals[vals.length - 1];
+  const col = last > 80 ? "var(--critical)" : last > 60 ? "var(--high)" : last > 30 ? "var(--medium)" : "var(--low)";
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><line x1="0" x2="${w}" y1="${h-60/100*h}" y2="${h-60/100*h}" stroke="var(--line)" stroke-dasharray="2 2"/><polyline fill="none" stroke="${col}" stroke-width="1.6" points="${pts}"/></svg>`;
+}
+function render(d) {
+  for (const [k, v] of Object.entries(d.counts)) { const el = document.querySelector(`[data-k=${k}]`); if (el) el.textContent = v; }
+  document.getElementById("sessions").innerHTML = d.sessions.map((s) => `
+    <tr>
+      <td><a href="/admin/session/${encodeURIComponent(s.id)}">${esc(s.username)}</a></td>
+      <td>${esc(s.status)}${s.end_reason ? `<div class="muted" style="font-size:.78rem">${esc(s.end_reason)}</div>` : ""}</td>
+      <td><span class="tier ${esc(s.tier)}">${esc(s.tier)}</span></td>
+      <td class="num">${Math.round(s.risk)}</td>
+      <td>${spark(s.spark)}</td>
+      <td class="num">${s.windows_scored}</td>
+      <td class="num">${s.stepups}</td>
+      <td class="mono">${esc(s.ip)}</td>
+      <td class="mono">${fmt(s.last_seen)}</td>
+    </tr>`).join("") || '<tr><td colspan="9" class="muted">No sessions yet.</td></tr>';
+  document.getElementById("events").innerHTML = d.events.map((e) => `
+    <tr>
+      <td class="mono">${fmt(e.ts)}</td>
+      <td class="sev-${esc(e.severity)}">${esc(e.kind)}</td>
+      <td>${esc(e.username || "—")}</td>
+      <td class="mono muted" style="font-size:.78rem">${esc(e.detail || "")}</td>
+    </tr>`).join("");
+}
+render({{ data|tojson }});
+setInterval(async () => {
+  try { const r = await fetch("{{ url_for('admin_api_overview') }}", {credentials: "same-origin"}); if (r.ok) render(await r.json()); } catch (_) {}
+}, 5000);
+</script>
+{% endblock %}

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ContAuth{% endblock %} · Continuous Authentication</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  {% if cur %}
+  <meta name="csrf-token" content="{{ cur.csrf }}">
+  <meta name="ca-endpoint" content="{{ url_for('behavior') }}">
+  <meta name="ca-window-ms" content="{{ window_ms }}">
+  <script src="{{ url_for('static', filename='js/capture.js') }}" defer></script>
+  {% endif %}
+</head>
+<body>
+  {% if cur %}
+  <header class="top">
+    <span class="brand">ContAuth</span>
+    <nav>
+      <a href="{{ url_for('app_home') }}" class="{{ 'on' if request.endpoint=='app_home' }}">Home</a>
+      <a href="{{ url_for('notes') }}" class="{{ 'on' if request.endpoint=='notes' }}">Notes</a>
+      <a href="{{ url_for('settings') }}" class="{{ 'on' if request.endpoint=='settings' }}">Settings</a>
+      {% if cur.role == 'admin' %}
+      <a href="{{ url_for('admin_overview') }}" class="{{ 'on' if request.endpoint and request.endpoint.startswith('admin') }}">Admin</a>
+      {% endif %}
+    </nav>
+    <span id="ca-badge" data-tier="{{ cur.tier }}">Trust: {{ cur.tier|lower }} risk ({{ cur.risk|round|int }})</span>
+    <span class="muted">{{ cur.username }}</span>
+    <form method="post" action="{{ url_for('logout') }}" class="inline">
+      <input type="hidden" name="csrf" value="{{ cur.csrf }}"><button class="ghost">Sign out</button>
+    </form>
+  </header>
+  {% endif %}
+  <main class="{% block mainclass %}{% endblock %}">
+    {% for m in get_flashed_messages() %}<div class="flash">{{ m }}</div>{% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

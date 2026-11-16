@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Session · {{ data.session.username }}{% endblock %}
+{% block content %}
+{% set s = data.session %}
+<h1>Session · {{ s.username }}</h1>
+{% include "admin/_nav.html" %}
+<div class="grid">
+  <div class="panel stat"><div class="n"><span class="tier {{ s.tier }}">{{ s.tier }}</span></div><div class="l">Status: {{ s.status }}</div></div>
+  <div class="panel stat"><div class="n">{{ s.risk|round|int }}</div><div class="l">Current risk</div></div>
+  <div class="panel stat"><div class="n">{{ s.windows_scored }}</div><div class="l">Windows scored</div></div>
+  <div class="panel stat"><div class="n">{{ s.stepups }}</div><div class="l">Step-ups passed</div></div>
+</div>
+<p class="muted mono" style="font-size:.8rem;margin-top:.8rem">
+  started {{ s.created_at|ts }} · IP {{ s.ip }} · device {{ s.device_hash }}{% if s.new_device %} (new for user){% endif %}{% if s.new_ip %} · IP new for user{% endif %}
+  {% if s.end_reason %}<br>ended: {{ s.end_reason }}{% endif %}
+</p>
+{% if s.status in ('active', 'step_up') %}
+<form method="post" action="{{ url_for('admin_terminate', sid=s.id) }}" class="inline">
+  <input type="hidden" name="csrf" value="{{ cur.csrf }}">
+  <label class="inline" style="display:inline"><input type="checkbox" name="lock" value="1"> also lock account</label>
+  <button class="danger">Terminate session</button>
+</form>
+{% endif %}
+
+<h2>Risk over time</h2>
+<div class="panel"><svg id="chart" class="chart" viewBox="0 0 800 220" preserveAspectRatio="none" role="img" aria-label="Risk score per window with tier bands"></svg>
+  <p class="muted" style="font-size:.8rem;margin:.4rem 0 0">Bands: low ≤30 · medium ≤60 · high ≤80 · critical. Line: total risk. Dots: behaviour component.</p></div>
+
+<h2>Scored windows</h2>
+<div class="panel scroll-x">
+  <table>
+    <thead><tr><th>#</th><th>Page</th><th>Model</th><th>Events</th><th>B</th><th>C</th><th>D</th><th>S</th><th>Risk</th><th>Tier</th><th>Action</th><th>Overrides</th></tr></thead>
+    <tbody>
+    {% for w in data.windows|reverse %}
+      <tr>
+        <td class="num">{{ loop.revindex }}</td>
+        <td class="mono">{{ w.page }}</td>
+        <td>{{ w.model }}{% if w.enrollable %} <span class="muted">· enrolled</span>{% endif %}</td>
+        <td class="num">{{ w.features.total_events }}</td>
+        <td class="num">{{ w.components.behavior }}</td>
+        <td class="num">{{ w.components.context }}</td>
+        <td class="num">{{ w.components.device }}</td>
+        <td class="num">{{ w.components.session }}</td>
+        <td class="num">{{ w.risk }}</td>
+        <td><span class="tier {{ w.tier }}">{{ w.tier }}</span></td>
+        <td>{{ w.action }}</td>
+        <td class="muted" style="font-size:.8rem">{{ w.components.overrides|join(', ') }}</td>
+      </tr>
+    {% else %}<tr><td colspan="12" class="muted">No windows yet.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2>Session events</h2>
+<div class="panel scroll-x"><table>
+  {% for e in data.events %}<tr><td class="mono">{{ e.ts|ts }}</td><td class="sev-{{ e.severity }}">{{ e.kind }}</td><td class="mono muted" style="font-size:.78rem">{{ e.detail or '' }}</td></tr>{% endfor %}
+</table></div>
+
+<script>
+(function () {
+  const wins = {{ data.windows|tojson }};
+  const svg = document.getElementById("chart");
+  const W = 800, H = 220, P = 6;
+  const y = (v) => H - P - v / 100 * (H - 2 * P);
+  const bands = [[0, 30, "var(--low)"], [30, 60, "var(--medium)"], [60, 80, "var(--high)"], [80, 100, "var(--critical)"]];
+  let out = bands.map(([a, b, c]) => `<rect x="0" width="${W}" y="${y(b)}" height="${y(a) - y(b)}" fill="${c}" opacity=".08"/>`).join("");
+  if (wins.length) {
+    const n = Math.max(wins.length - 1, 1), x = (i) => P + i / n * (W - 2 * P);
+    out += `<polyline fill="none" stroke="var(--ink)" stroke-width="2" vector-effect="non-scaling-stroke" points="${wins.map((w, i) => `${x(i)},${y(w.risk)}`).join(" ")}"/>`;
+    out += wins.map((w, i) => `<circle cx="${x(i)}" cy="${y(w.components.behavior ?? 0)}" r="2.5" fill="var(--accent)"><title>window ${i + 1}: risk ${w.risk}, behaviour ${w.components.behavior}</title></circle>`).join("");
+  } else {
+    out += `<text x="${W / 2}" y="${H / 2}" text-anchor="middle" fill="var(--muted)" font-size="14">No windows scored yet</text>`;
+  }
+  svg.innerHTML = out;
+})();
+</script>
+{% endblock %}

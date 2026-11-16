@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Confirm it's you{% endblock %}
+{% block mainclass %}narrow{% endblock %}
+{% block content %}
+<div class="panel">
+  <h1>Confirm it's you</h1>
+  <p>Activity in this session no longer matches your usual pattern, or you're opening a protected page while trust is low. Re-enter your password to continue.</p>
+  <form method="post">
+    <input type="hidden" name="csrf" value="{{ cur.csrf }}">
+    <label for="p">Password</label><input type="password" id="p" name="password" autocomplete="current-password" required autofocus>
+    <button type="submit">Continue</button>
+  </form>
+</div>
+{% endblock %}

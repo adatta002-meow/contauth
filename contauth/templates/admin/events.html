@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Security events{% endblock %}
+{% block content %}
+<h1>Security events &amp; audit log</h1>
+{% include "admin/_nav.html" %}
+<p>Filter:
+  <a href="{{ url_for('admin_events') }}">all</a> ·
+  <a href="{{ url_for('admin_events', severity='critical') }}">critical</a> ·
+  <a href="{{ url_for('admin_events', severity='warning') }}">warning</a> ·
+  <a href="{{ url_for('admin_events', severity='info') }}">info</a>
+  {% if severity %}<span class="muted"> (showing {{ severity }})</span>{% endif %}
+</p>
+<div class="panel scroll-x">
+  <table>
+    <thead><tr><th>Time</th><th>Severity</th><th>Event</th><th>User</th><th>Session</th><th>Detail</th></tr></thead>
+    <tbody>
+    {% for e in events %}
+      <tr>
+        <td class="mono">{{ e.ts|ts }}</td>
+        <td class="sev-{{ e.severity }}">{{ e.severity }}</td>
+        <td>{{ e.kind }}</td>
+        <td>{{ e.username or '—' }}</td>
+        <td class="mono">{% if e.session_id %}<a href="{{ url_for('admin_session', sid=e.session_id) }}">{{ e.session_id[:8] }}…</a>{% else %}—{% endif %}</td>
+        <td class="mono muted" style="font-size:.78rem">{{ e.detail or '' }}</td>
+      </tr>
+    {% else %}<tr><td colspan="6" class="muted">No events.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Users{% endblock %}
+{% block content %}
+<h1>Users &amp; behavioural profiles</h1>
+{% include "admin/_nav.html" %}
+<div class="panel scroll-x">
+  <table>
+    <thead><tr><th>User</th><th>Role</th><th>Profile</th><th>Enrolled windows</th><th>Account</th><th></th></tr></thead>
+    <tbody>
+    {% for u in users %}
+      <tr>
+        <td>{{ u.username }}</td>
+        <td>{{ u.role }}</td>
+        <td>{% if u.n_windows %}trained on {{ u.n_windows }} windows<br><span class="muted mono" style="font-size:.78rem">{{ u.trained_at|ts }}</span>{% else %}<span class="muted">enrolling ({{ u.enrolled }}/{{ need }})</span>{% endif %}</td>
+        <td class="num">{{ u.enrolled }}</td>
+        <td>{% if u.locked_until > now %}<span class="sev-critical">locked until {{ u.locked_until|ts }}</span>{% else %}active{% endif %}</td>
+        <td style="white-space:nowrap">
+          {% if u.locked_until > now %}
+          <form method="post" action="{{ url_for('admin_unlock', uid=u.id) }}" class="inline"><input type="hidden" name="csrf" value="{{ cur.csrf }}"><button class="ghost">Unlock</button></form>
+          {% endif %}
+          <form method="post" action="{{ url_for('admin_reset_profile', uid=u.id) }}" class="inline" onsubmit="return confirm('Delete this user\'s behavioural profile and restart enrollment?')"><input type="hidden" name="csrf" value="{{ cur.csrf }}"><button class="ghost">Reset profile</button></form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

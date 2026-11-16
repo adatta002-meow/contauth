@@ -670,8 +670,11 @@ async function startSession(cd){
   $("whoami").textContent=mode==="shared"?(isAdmin?"Signed in · admin":"Signed in"):"Tab-only session";
   showTab("work");loadNotes();if(mode==="shared"&&isAdmin)watchAdmin();render()}
 
-function onOwnDoc(snap){if(!S.on||!snap.exists)return;const d=snap.data();
-  if(d.sid&&d.sid!==S.sid){end("this account signed in again in another tab or on another device, so this session was closed",false,true);return}
+function onOwnDoc(snap){if(!S.on||!snap.exists)return;
+  /* the store may first replay a cached copy from an earlier visit: never act on it */
+  if(snap.metadata&&(snap.metadata.fromCache||snap.metadata.hasPendingWrites))return;
+  const d=snap.data();
+  if(d.sid&&d.sid!==S.sid&&(d.started||0)>S.started){end("this account signed in again in another tab or on another device, so this session was closed",false,true);return}
   const c=d.adminCmd;if(c&&c.t>S.adminSeen){S.adminSeen=c.t;
     if(c.kind==="terminate"){logEv("admin_terminated","critical","session terminated by an admin");end("terminated by an administrator",!!c.lock,true)}
     if(c.kind==="reset_profile"){S.X=[];S.prof=null;S.since=0;logEv("profile_reset","warning","profile reset by an admin; enrollment restarts");saveProfile({resetSeen:c.t});persist();render()}}}

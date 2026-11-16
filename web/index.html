@@ -623,6 +623,9 @@ async function boot(){
   if(!V.ok&&!V.tried){V.tried=true;fetch("viz.json").then(r=>r.ok?r.json():null).then(j=>initViz(j)).catch(()=>vizNote("3D view unavailable."))}
   try{if(window.claude&&window.claude.use){[user,db]=await Promise.all([window.claude.use("user"),window.claude.use("db")])}}catch(e){}
   try{uid=user?await user.id():null;isAdmin=user?!!(await user.canEdit()):false}catch(e){uid=null}
+  let canWrite=null;try{canWrite=user&&user.can?await user.can("data.write"):null}catch(e){}
+  if(db&&uid&&canWrite===false){mode="local";await pop;
+    gate("Start a session","Your link gives view-only access, so this session runs in this tab only: it isn't saved and has no admin dashboard. Everything else works. Choose a password for this session.",true,true,"Start");return}
   if(db&&uid){mode="shared";
     try{const a=await own("account").get();account=a.exists?a.data():null}catch(e){account=null}
     await pop;
@@ -642,7 +645,8 @@ $("gForm").addEventListener("submit",async e=>{e.preventDefault();const pw=$("pw
     if(!account){const salt=crypto.getRandomValues(new Uint32Array(4)).join("-");const a={salt,hash:await pbkdf(pw,salt),created:Date.now()};await own("account").set(a);account=a}
     else if(!(await checkPw(pw))){$("gErr").textContent="Wrong password.";return}
     await startSession(cd)}
-  catch(err){$("gErr").textContent="Couldn't reach storage. Try again in a moment."}
+  catch(err){if(err&&err.code==="invalid_argument"){mode="local";db=null;gate("Start a session","Your link gives view-only access, so this session runs in this tab only. Choose a password for this session.",true,true,"Start")}
+    else $("gErr").textContent="Couldn't reach storage. Try again in a moment."}
   finally{$("gBtn").disabled=false;$("pw").value="";$("pw2").value=""}});
 
 async function startSession(cd){

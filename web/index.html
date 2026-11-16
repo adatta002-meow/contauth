@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ContAuth Live System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a security console, calm and exact; numbers carry the drama.
+   IDEA: a live trust meter on a login, like an ICU monitor for one session.
+   PICTURE: the big risk ring + per-window risk timeline over tier bands; admin sees every session.
+   COLOUR and TYPE: sky field, ink, orange for the point that matters; Outfit + Inter.
+   LAYOUT: sky band with ring and status, tabs, then workspace beside the timeline. */
+:root{color-scheme:light dark;
+ --bg:light-dark(#ffffff,#0b1726);--ink:light-dark(#10223a,#e6eef7);--mut:light-dark(#4d6075,#97a9bd);
+ --sky:light-dark(#4fb3e8,#123a5c);--skyink:light-dark(#0a2238,#e6eef7);--line:light-dark(#d9e3ec,#22364d);
+ --panel:light-dark(#f4f8fb,#112238);--org:#ff7a1a;
+ --low:light-dark(#1f8a55,#3ccf8a);--med:light-dark(#b07a00,#f0b429);--high:light-dark(#d65a12,#ff8a3d);--crit:light-dark(#c62828,#ff5c5c)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:Outfit,Inter,sans-serif;font-weight:600;line-height:1.08;text-wrap:balance;margin:0}
+h1{font-size:clamp(32px,4.4vw,46px)}h2{font-size:24px;margin-bottom:12px}h3{font-size:17px}
+a{color:inherit}
+.band{padding:clamp(24px,4vw,56px) max(5vw,16px)}
+.wrap{max-width:1240px;margin:0 auto}
+.top{background:var(--sky);color:var(--skyink)}
+.topg{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:clamp(20px,4vw,56px);align-items:center}
+.lede{font-size:17px;max-width:62ch;margin:14px 0 0}
+.meter{display:grid;grid-template-columns:auto minmax(0,1fr);gap:20px;align-items:center}
+.ring{width:clamp(130px,16vw,170px);aspect-ratio:1;position:relative}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font:600 clamp(36px,5vw,50px)/1 Outfit,sans-serif}
+.ring small{position:absolute;bottom:22%;left:0;right:0;text-align:center;font-size:13px;opacity:.8}
+.chip{display:inline-block;padding:2px 10px;border-radius:99px;font-weight:600;font-size:13px;color:#fff;white-space:nowrap}
+.LOW{background:var(--low)}.MEDIUM{background:var(--med)}.HIGH{background:var(--high)}.CRITICAL{background:var(--crit)}.NONE{background:var(--mut)}
+.stat{font-size:15px;margin:8px 0 0}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid var(--line);margin-bottom:20px;align-items:center}
+.tabs button{background:transparent;color:var(--mut);border-radius:8px 8px 0 0;border-bottom:3px solid transparent}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--org)}
+.tabs .sp{flex:1}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:clamp(16px,3vw,32px)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:clamp(16px,2.4vw,24px)}
+.card+.card{margin-top:16px}
+label{display:block;font-size:14px;color:var(--mut);margin:12px 0 6px}
+input,textarea{width:100%;font:16px Inter,sans-serif;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:11px 12px}
+textarea{min-height:170px;resize:vertical}
+input[type=checkbox]{width:auto;min-height:0}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:3px solid var(--org);outline-offset:2px}
+button{font:600 15px Inter,sans-serif;min-height:44px;padding:0 16px;border-radius:8px;border:0;background:var(--ink);color:var(--bg);cursor:pointer}
+button.alt{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button.alt.on{border-color:var(--org)}
+button.danger{background:var(--crit);color:#fff}
+button.atk{background:transparent;color:var(--ink);border:1px solid var(--line);text-align:left;padding:10px 14px;width:100%;line-height:1.35}
+button.atk b{display:block}button.atk span{font-weight:400;font-size:14px;color:var(--mut)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}
+.atks{display:grid;gap:10px;margin-top:12px}
+.hint{font-size:14px;color:var(--mut);margin:8px 0 0}
+.fig{position:relative;min-height:230px;margin-top:8px}.fig>svg{position:absolute;inset:0;width:100%;height:100%}
+.bars{display:grid;gap:8px;margin-top:14px}
+.bar{display:grid;grid-template-columns:140px minmax(0,1fr) 44px;gap:10px;align-items:center;font-size:14px}
+.track{height:10px;background:var(--line);border-radius:99px;overflow:hidden}.track i{display:block;height:100%;background:var(--ink);transition:width .4s}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-weight:500;color:var(--mut)}
+tr.click{cursor:pointer}tr.click:hover td{background:color-mix(in srgb,var(--org) 8%,transparent)}
+.scroll{overflow-x:auto;max-height:340px;overflow-y:auto}
+.ev{display:grid;grid-template-columns:72px minmax(0,1fr);gap:10px;font-size:14px;padding:6px 0;border-bottom:1px solid var(--line)}
+.ev .t{color:var(--mut);font-variant-numeric:tabular-nums}.sev-critical{color:var(--crit);font-weight:600}.sev-warning{color:var(--high);font-weight:600}
+.gate{max-width:460px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.kpis .card+.card{margin-top:0}
+.kpi b{display:block;font:600 30px/1.1 Outfit,sans-serif}.kpi span{font-size:14px;color:var(--mut)}
+.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.steps p{margin:6px 0 0;font-size:15px;color:var(--mut)}
+.steps strong{font-family:Outfit,sans-serif;font-size:30px;color:var(--org)}
+.overlay{position:fixed;inset:0;background:rgb(6 14 24/.62);display:none;place-items:center;padding:16px;z-index:9}
+.overlay.on{display:grid}
+.dlg{background:var(--bg);color:var(--ink);border-radius:14px;padding:24px;max-width:440px;width:100%;box-shadow:0 20px 60px rgb(0 0 0/.35)}
+.dlg p{margin:10px 0 0}
+.err{color:var(--crit);font-size:14px;min-height:20px;margin-top:6px}
+.ok{color:var(--low);font-size:14px;min-height:20px;margin-top:6px}
+#botdot{position:fixed;width:14px;height:14px;border-radius:50%;background:var(--org);box-shadow:0 0 0 4px rgb(255 122 26/.3);pointer-events:none;display:none;z-index:8}
+.note{font-size:13px;color:var(--mut)}
+.notei{border-bottom:1px solid var(--line);padding:10px 0}.notei p{margin:4px 0 0;white-space:pre-wrap}
+.spark{display:block}
+@media(max-width:860px){.topg,.grid{grid-template-columns:minmax(0,1fr)}.steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){table{font-size:13px}.bar{grid-template-columns:120px minmax(0,1fr) 40px}.hide-s{display:none}}
+@media(prefers-reduced-motion:reduce){.track i{transition:none}}
+</style>
+</head>
+<body>
+<header class="band top"><div class="wrap topg">
+  <div>
+    <h1>Is it still you? Continuous authentication, live</h1>
+    <p class="lede">Sign in, then work normally. Every 5 seconds your typing and mouse behaviour is scored, and a Zero Trust engine decides: allow, monitor, ask for your password, or end the session. Admins watch every session live.</p>
+  </div>
+  <div class="meter">
+    <div class="ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-opacity=".18" stroke-width="10"/><circle id="arc" cx="50" cy="50" r="42" fill="none" stroke="var(--org)" stroke-width="10" stroke-linecap="round" stroke-dasharray="0 264"/></svg><b id="riskN">–</b><small>risk / 100</small></div>
+    <div>
+      <span id="tierChip" class="chip NONE">Not signed in</span>
+      <p class="stat" id="actionTxt">Waiting for sign-in.</p>
+      <p class="stat" id="modelTxt">Model: none yet</p>
+      <p class="stat" id="nextTxt"></p>
+    </div>
+  </div>
+</div></header>
+
+<main class="band"><div class="wrap">
+  <section id="gate" class="card gate">
+    <h2 id="gTitle">Connecting…</h2>
+    <p class="hint" id="gInfo" style="margin-top:0">Checking your account.</p>
+    <form id="gForm" hidden>
+      <label for="pw">ContAuth password</label><input id="pw" type="password" minlength="6" required autocomplete="current-password">
+      <div id="pw2Wrap" hidden><label for="pw2">Repeat password</label><input id="pw2" type="password" minlength="6" autocomplete="new-password"></div>
+      <p class="err" id="gErr"></p>
+      <button type="submit" id="gBtn">Sign in</button>
+    </form>
+  </section>
+
+  <section id="app" hidden>
+    <nav class="tabs" id="tabs">
+      <button data-t="work" class="on">Workspace</button>
+      <button data-t="notes">Notes</button>
+      <button data-t="set">Settings <span class="note">(protected)</span></button>
+      <button data-t="admin" id="tabAdmin" hidden>Admin</button>
+      <span class="sp"></span>
+      <span class="note" id="whoami"></span>
+      <button class="alt" id="signout">Sign out</button>
+    </nav>
+
+    <div id="p-work" class="grid">
+      <div>
+        <div class="card">
+          <h2>Workspace</h2>
+          <label for="pad">Type anything here and move the mouse around as you normally would.</label>
+          <textarea id="pad" placeholder="Start typing…"></textarea>
+          <p class="hint" id="enrollHint"></p>
+        </div>
+        <div class="card">
+          <h2>Try an attack</h2>
+          <p class="hint" style="margin-top:0">Real insider test: once your profile is built, let a friend take over your keyboard and mouse. Real takeover test: open this page and sign in on another device. The buttons simulate what a browser alone cannot produce.</p>
+          <div class="atks">
+            <button class="atk" id="aNet"><b>Session used from a new network</b><span>The next window arrives from a different IP address.</span></button>
+            <button class="atk" id="aBot"><b>Bot takes over the session</b><span>A script moves the pointer in identical steps for 3 seconds.</span></button>
+            <button class="atk" id="aCookie"><b>Stolen cookie replayed in another browser</b><span>The session cookie shows up with a different browser identity.</span></button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <h2>Risk per window</h2>
+          <div class="fig"><svg id="chart" role="img" aria-label="Risk per 5-second window over tier bands"></svg></div>
+          <p class="note">Bands: low 0–30 · medium 31–60 · high 61–80 · critical 81–100. Line: total risk. Dots: behaviour score B.</p>
+          <div class="bars" id="bars"></div>
+          <p class="note">Risk = 0.70·B + 0.10·C + 0.10·D + 0.10·S, plus hard overrides for deterministic signals.</p>
+        </div>
+        <div class="card">
+          <h2>Scored windows</h2>
+          <div class="scroll"><table><thead><tr><th>#</th><th>Model</th><th class="num">Events</th><th class="num">B</th><th class="num">Risk</th><th>Decision</th><th class="hide-s">Why</th></tr></thead><tbody id="wins"></tbody></table></div>
+        </div>
+        <div class="card"><h2>Security events</h2><div id="events"></div></div>
+      </div>
+    </div>
+
+    <div id="p-notes" hidden class="grid">
+      <div class="card">
+        <h2>New note</h2>
+        <form id="noteForm">
+          <label for="nt">Title</label><input id="nt" maxlength="120" required>
+          <label for="nb">Note</label><textarea id="nb" required maxlength="4000"></textarea>
+          <button type="submit" style="margin-top:12px">Save note</button>
+        </form>
+        <p class="hint">Typing here also counts as behaviour. Notes are private to your account.</p>
+      </div>
+      <div class="card"><h2>Your notes</h2><div id="noteList"></div></div>
+    </div>
+
+    <div id="p-set" hidden class="grid">
+      <div class="card">
+        <h2>Change ContAuth password</h2>
+        <p class="hint" style="margin-top:0">Protected page: only open while your session is low or medium risk. While you are here, the session factor S adds 30.</p>
+        <form id="setForm">
+          <label for="so">Current password</label><input id="so" type="password" required autocomplete="current-password">
+          <label for="sn">New password (6+ characters)</label><input id="sn" type="password" minlength="6" required autocomplete="new-password">
+          <p class="err" id="setErr"></p><p class="ok" id="setOk"></p>
+          <button type="submit">Update password</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Your behavioural profile</h2>
+        <p id="profInfo"></p>
+        <div class="row"><button class="alt" id="resetMine">Reset my profile</button></div>
+        <p class="hint">Resetting deletes your stored activity windows; the next 12 clean windows rebuild it.</p>
+      </div>
+    </div>
+
+    <div id="p-admin" hidden>
+      <div class="kpis" id="kpis"></div>
+      <div class="card"><h2>Sessions <span class="note" style="font-weight:400">· live</span></h2>
+        <div class="scroll" style="max-height:none"><table><thead><tr><th>User</th><th>Status</th><th>Tier</th><th class="num">Risk</th><th>Trend</th><th class="num hide-s">Windows</th><th class="hide-s">Profile</th><th class="hide-s">Last seen</th></tr></thead><tbody id="aSessions"></tbody></table></div>
+      </div>
+      <div class="card" id="aDetail" hidden></div>
+      <div class="card"><h2>Security event log</h2>
+        <div class="row" style="margin-top:0" id="sevFilter"><button class="alt" data-s="">All</button><button class="alt" data-s="critical">Critical</button><button class="alt" data-s="warning">Warning</button><button class="alt" data-s="info">Info</button></div>
+        <div class="scroll" style="margin-top:10px"><table><thead><tr><th>Time</th><th>User</th><th>Event</th><th class="hide-s">Detail</th></tr></thead><tbody id="aEvents"></tbody></table></div>
+      </div>
+    </div>
+  </section>
+</div></main>
+
+<section class="band" style="background:var(--panel);border-top:1px solid var(--line)"><div class="wrap">
+  <h2>What happens behind the meter</h2>
+  <div class="steps">
+    <div><strong>1</strong><h3>Capture</h3><p>Only timings and pointer coordinates: never which key you press or what you type.</p></div>
+    <div><strong>2</strong><h3>Features</h3><p>21 features per window: typing rhythm, pointer speed, clicks, scrolling, pauses, pointer-path regularity.</p></div>
+    <div><strong>3</strong><h3>Models</h3><p>Cold start uses the population model trained on 705 real sessions. After 12 clean windows a personal Isolation Forest takes over, with your own calibrated threshold.</p></div>
+    <div><strong>4</strong><h3>Zero Trust</h3><p>Behaviour alone can force a password re-check, never a termination. Cookie theft and bots end the session and lock the account for 15 minutes.</p></div>
+  </div>
+  <h2 style="margin-top:36px">How the full system measured on real data</h2>
+  <p style="max-width:70ch;margin-top:0">Per-user verification on the Capstone B dataset (705 real sessions, 10 users), tested on impostors never seen in training:</p>
+  <div class="scroll" style="max-height:none"><table style="max-width:640px"><thead><tr><th>Setting</th><th class="num">ROC-AUC</th><th class="num">False accepts</th><th class="num">False rejects</th></tr></thead><tbody>
+    <tr><td>Original model (14 features)</td><td class="num">0.767</td><td class="num">–</td><td class="num">–</td></tr>
+    <tr><td>Improved model, target 5% false accepts</td><td class="num">0.800</td><td class="num">5.1%</td><td class="num">60.3%</td></tr>
+    <tr><td>Improved model, target 10% (default)</td><td class="num">0.800</td><td class="num">9.2%</td><td class="num">48.2%</td></tr>
+    <tr><td>Improved model, target 20%</td><td class="num">0.800</td><td class="num">18.5%</td><td class="num">35.5%</td></tr>
+  </tbody></table></div>
+  <p class="note" style="max-width:80ch">The population model here is the server's trained model, exported exactly (scores match Python to 6 decimals). Personal profiles use an Isolation Forest; the server additionally uses a One-Class SVM and, once several users are enrolled, a supervised ExtraTrees + logistic-regression model. Enforcement runs in each visitor's browser, so a determined user could bypass it; the server version enforces it server-side. Source: <a href="https://github.com/adatta002-meow/contauth">github.com/adatta002-meow/contauth</a></p>
+</div></section>
+
+<div id="botdot"></div>
+<div class="overlay" id="ovStep"><form class="dlg" id="stepForm">
+  <h2>Confirm it's you</h2>
+  <p id="stepWhy"></p>
+  <label for="stepPw">ContAuth password</label><input id="stepPw" type="password" autocomplete="current-password">
+  <p class="err" id="stepErr"></p>
+  <div class="row"><button type="submit">Continue</button><button type="button" class="alt" id="stepCancel" hidden>Cancel</button></div>
+</form></div>
+<div class="overlay" id="ovEnd"><div class="dlg">
+  <h2>Session ended</h2>
+  <p id="endWhy"></p>
+  <p class="note" id="endLock"></p>
+  <button id="restart" style="margin-top:16px">Back to sign-in</button>
+</div></div>
+
+<script>
+{
+const WIN=window.__CA_WIN||5000,MIN_EV=15,ENROLL=12,RETRAIN=8,MAXP=60,IDLE=2000,LOCK_MS=15*60000,STALE=20000;
+const W={behavior:.7,context:.1,device:.1,session:.1},ALPHA=.5;
+const FEATS=["events_per_min","typing_speed_keys_per_min","avg_inter_key_interval_ms","std_inter_key_interval_ms","avg_mouse_speed_px_s","std_mouse_speed_px_s","avg_inter_click_interval_ms","scroll_rate_per_min","idle_time_ratio","mouse_moves_per_min","clicks_per_min","mouse_distance_per_min","idle_gaps_per_min","modifier_key_ratio","cv_inter_key","cv_mouse_speed","keys_per_mouse_move","clicks_per_mouse_move","mean_idle_gap_ms","max_idle_gap_ratio","px_per_move"];
+const MODS=new Set(["Shift","Control","Alt","Meta","CapsLock","AltGraph"]);
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmtT=t=>t?new Date(t).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"—";
+let db=null,user=null,uid=null,isAdmin=false,POP=null,mode="local",account=null,profDoc=null,localPw=null;
+let S,names={},adminRows=[],adminSel=null,sevF="",adminUnsub=null,ownUnsub=null;
+function fresh(){S={on:false,sid:"",buf:[],wStart:0,wins:[],evs:[],ewma:null,streak:0,risk:0,tier:"LOW",fails:0,net:false,bot:false,
+  prof:null,X:[],since:0,lastMove:0,timer:null,paused:false,ok:false,tab:"work",newDev:false,dev:"",started:0,adminSeen:0,stepups:0,stepCancel:null}}
+fresh();
+
+/* ---------- storage (shared db when available, else this tab only) ---------- */
+let q=Promise.resolve();
+const write=fn=>{if(!db||!uid)return;q=q.then(fn).catch(e=>{if(e&&e.code==="quota_exceeded")logEv("storage_full","warning","database is full")})};
+const own=p=>db.doc("data/users/"+uid+"/"+p),sess=id=>db.doc("sessions/"+(id||uid));
+const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");
+async function sha(s){return hex(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)))}
+async function pbkdf(pw,salt){const k=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw),"PBKDF2",false,["deriveBits"]);
+  return hex(await crypto.subtle.deriveBits({name:"PBKDF2",salt:new TextEncoder().encode(salt),iterations:120000,hash:"SHA-256"},k,256))}
+async function checkPw(pw){return mode==="shared"?!!account&&await pbkdf(pw,account.salt)===account.hash:pw===localPw}
+
+/* ---------- capture: timings and coordinates only ---------- */
+const push=e=>{if(S.on&&!S.paused&&!S.bot&&S.buf.length<20000)S.buf.push(e)};
+document.addEventListener("keydown",e=>{if(!e.repeat)push({t:Date.now(),type:"keydown",mod:MODS.has(e.key)})},true);
+document.addEventListener("keyup",()=>push({t:Date.now(),type:"keyup"}),true);
+document.addEventListener("mousemove",e=>{const t=Date.now();if(t-S.lastMove<20)return;S.lastMove=t;push({t,type:"mousemove",x:e.screenX,y:e.screenY})},{capture:true,passive:true});
+["mousedown","mouseup","click"].forEach(k=>document.addEventListener(k,()=>push({t:Date.now(),type:k}),true));
+window.addEventListener("wheel",()=>push({t:Date.now(),type:"scroll"}),{capture:true,passive:true});
+
+/* ---------- features (port of contauth/features.py) ---------- */
+const mean=a=>a.reduce((s,x)=>s+x,0)/a.length;
+const pstd=a=>{const m=mean(a);return Math.sqrt(mean(a.map(x=>(x-m)**2)))};
+function features(evs,t0,t1){
+  evs=evs.slice().sort((a,b)=>a.t-b.t);const dur=Math.max(t1-t0,1),pm=c=>c/(dur/60000);
+  const kd=evs.filter(e=>e.type==="keydown"),mv=evs.filter(e=>e.type==="mousemove"),ck=evs.filter(e=>e.type==="click"),sc=evs.filter(e=>e.type==="scroll");
+  const kt=kd.map(e=>e.t),iki=kt.slice(1).map((t,i)=>t-kt[i]).filter(x=>x>0);
+  let sp=[],dist=0;for(let i=1;i<mv.length;i++){const d=Math.hypot(mv[i].x-mv[i-1].x,mv[i].y-mv[i-1].y);dist+=d;const dt=mv[i].t-mv[i-1].t;if(dt>0)sp.push(d/(dt/1000))}
+  const st=[];for(let i=1;i<mv.length;i++){const s=[mv[i].x-mv[i-1].x,mv[i].y-mv[i-1].y];if(s[0]||s[1])st.push(s)}
+  let same=0;for(let i=1;i<st.length;i++){const[a,b]=st[i-1],[c,d]=st[i],la=Math.hypot(a,b),lb=Math.hypot(c,d);if(Math.abs(a*d-b*c)<=Math.max(1,.02*la*lb)&&Math.abs(la-lb)<=1)same++}
+  const ct=ck.map(e=>e.t),ici=ct.slice(1).map((t,i)=>t-ct[i]).filter(x=>x>0);
+  const stamps=[t0,...evs.map(e=>e.t),t1],gaps=stamps.slice(1).map((t,i)=>t-stamps[i]).filter(g=>g>=IDLE),idle=gaps.reduce((s,g)=>s+g,0);
+  const mods=kd.filter(e=>e.mod).length,aI=iki.length?mean(iki):null,sI=iki.length>1?pstd(iki):null,aS=sp.length?mean(sp):0,sS=sp.length>1?pstd(sp):0;
+  return{events_per_min:pm(evs.length),typing_speed_keys_per_min:pm(kd.length),avg_inter_key_interval_ms:aI,std_inter_key_interval_ms:sI,
+    avg_mouse_speed_px_s:aS,std_mouse_speed_px_s:sS,avg_inter_click_interval_ms:ici.length?mean(ici):null,scroll_rate_per_min:pm(sc.length),
+    idle_time_ratio:Math.min(idle/dur,1),mouse_moves_per_min:pm(mv.length),clicks_per_min:pm(ck.length),mouse_distance_per_min:pm(dist),
+    idle_gaps_per_min:pm(gaps.length),modifier_key_ratio:kd.length?mods/kd.length:null,cv_inter_key:aI&&sI!=null?sI/aI:null,cv_mouse_speed:aS?sS/aS:null,
+    keys_per_mouse_move:kd.length/(mv.length+1),clicks_per_mouse_move:ck.length/(mv.length+1),mean_idle_gap_ms:gaps.length?idle/gaps.length:null,
+    max_idle_gap_ratio:Math.min((gaps.length?Math.max(...gaps):0)/dur,1),px_per_move:dist/(mv.length+1),
+    total_events:evs.length,key_press_count:kd.length,mouse_movement_count:mv.length,repeated_step_ratio:st.length>1?same/(st.length-1):0}
+}
+function botTell(f){
+  if(f.events_per_min>6000)return"event rate above human range";
+  if(f.mouse_movement_count>=40&&f.repeated_step_ratio>=.9)return"pointer moved in identical repeated steps";
+  if(f.mouse_movement_count>=20&&f.avg_mouse_speed_px_s>0&&f.std_mouse_speed_px_s<.01*f.avg_mouse_speed_px_s)return"constant-velocity pointer movement";
+  if(f.key_press_count>=20&&f.std_inter_key_interval_ms!=null&&f.std_inter_key_interval_ms<5)return"machine-regular keystroke timing";
+  return null}
+
+/* ---------- models ---------- */
+const cN=n=>n>2?2*(Math.log(n-1)+.5772156649015329)-2*(n-1)/n:n===2?1:0;
+const cdfOf=ref=>s=>{let k=0;for(const r of ref)if(r<=s)k++;return k/ref.length};
+function popScore(x){ /* the server's trained population Isolation Forest, exported exactly */
+  const P=POP,z=x.map((v,j)=>(Math.log1p(Math.max(0,v==null||!isFinite(v)?P.median[j]:v))-P.mean[j])/P.scale[j]);
+  let h=0;for(const t of P.trees){let i=0,d=0;while(t.f[i]!==-1){i=Math.fround(z[t.f[i]])<=t.t[i]?t.l[i]:t.r[i];d++}h+=d+cN(t.n[i])}
+  return cdfOf(P.cdf)(-(2**(-(h/P.trees.length)/cN(P.psi)))-P.offset)}
+function prep(X){const d=X[0].length,med=[],mu=[],sd=[];
+  for(let j=0;j<d;j++){const v=X.map(r=>r[j]).filter(x=>x!=null&&isFinite(x)).sort((a,b)=>a-b);med[j]=v.length?v[Math.floor((v.length-1)/2)]:0}
+  const T=r=>r.map((x,j)=>Math.log1p(Math.max(0,x!=null&&isFinite(x)?x:med[j])));const Z=X.map(T);
+  for(let j=0;j<d;j++){const c=Z.map(r=>r[j]);mu[j]=mean(c);sd[j]=pstd(c)||1}
+  return r=>T(r).map((x,j)=>(x-mu[j])/sd[j])}
+function tree(X,depth,lim){if(depth>=lim||X.length<=1)return{n:X.length};
+  const d=X[0].length,ok=[];for(let j=0;j<d;j++){let lo=Infinity,hi=-Infinity;for(const r of X){lo=Math.min(lo,r[j]);hi=Math.max(hi,r[j])}if(hi>lo)ok.push([j,lo,hi])}
+  if(!ok.length)return{n:X.length};const[j,lo,hi]=ok[Math.floor(Math.random()*ok.length)],s=lo+Math.random()*(hi-lo);
+  return{j,s,l:tree(X.filter(r=>r[j]<s),depth+1,lim),r:tree(X.filter(r=>r[j]>=s),depth+1,lim)}}
+function plen(t,x,d){return t.n!==undefined?d+cN(t.n):plen(x[t.j]<t.s?t.l:t.r,x,d+1)}
+function forest(X){const f=prep(X),Z=X.map(f),psi=Math.min(256,Z.length),lim=Math.ceil(Math.log2(Math.max(psi,2))),trees=[];
+  for(let k=0;k<200;k++){const smp=[];for(let i=0;i<psi;i++)smp.push(Z[Math.floor(Math.random()*Z.length)]);trees.push(tree(smp,0,lim))}
+  return x=>{const z=f(x),h=mean(trees.map(t=>plen(t,z,0)));return .5-2**(-h/cN(psi))}}
+function quant(a,q){const v=a.slice().sort((x,y)=>x-y),p=(v.length-1)*q,i=Math.floor(p);return v[i]+(v[Math.min(i+1,v.length-1)]-v[i])*(p-i)}
+function train(quiet){const X=S.X.slice(-MAXP),k=Math.min(5,Math.floor(X.length/2)),oof=[];
+  for(let f=0;f<k;f++){const tr=X.filter((_,i)=>i%k!==f),m=forest(tr);X.forEach((x,i)=>{if(i%k===f)oof.push(m(x))})}
+  const F=cdfOf(oof),g=oof.map(F);S.prof={score:forest(X),F,tau:quant(g,.05),med:quant(g,.5),n:X.length,at:Date.now()};S.since=0;
+  if(!quiet)logEv("profile_trained","info",`personal model trained on ${X.length} windows; threshold ${S.prof.tau.toFixed(3)}`)}
+function calib(s,tau,med){s=Math.min(Math.max(s,0),1);tau=Math.min(Math.max(tau,1e-6),1-2e-6);
+  if(s<tau)return .13*s/tau;const m=med>tau&&med<1?med:(tau+1)/2;
+  return s<m?.13+(.65-.13)*(s-tau)/(m-tau):.65+(1-.65)*(s-m)/(1-m)}
+
+/* ---------- Zero Trust engine (port of policy.py) ---------- */
+function evaluate(g,damp,model,f,ctx){
+  let B,raw=null;if(g==null){B=S.ewma??0}else{raw=100*(1-Math.min(Math.max(g,0),1))*damp;B=S.ewma==null?raw:ALPHA*raw+(1-ALPHA)*S.ewma}
+  const C=ctx.net?70:0,D=ctx.dev?100:S.newDev?40:0,Sx=Math.min(100,(S.tab==="set"?30:0)+25*S.fails);
+  let risk=W.behavior*B+W.context*C+W.device*D+W.session*Sx;const ov=[];
+  if(ctx.dev)ov.push(["session binding mismatch",85]);const bt=g!=null?botTell(f):null;if(bt)ov.push(["automation: "+bt,85]);if(ctx.net)ov.push(["IP changed mid-session",61]);
+  ov.forEach(([,fl])=>risk=Math.max(risk,fl));risk=Math.round(Math.min(risk,100)*10)/10;
+  const tier=risk<=30?"LOW":risk<=60?"MEDIUM":risk<=80?"HIGH":"CRITICAL",streak=tier==="HIGH"?S.streak+1:0;
+  const action=tier==="LOW"?"allow":tier==="MEDIUM"?"monitor":tier==="HIGH"?(ov.length||streak>=2?"step_up":"monitor"):"terminate";
+  const enroll=raw!=null&&!ov.length&&!S.newDev&&(tier==="LOW"||(model==="population"&&tier==="MEDIUM"));
+  return{B:Math.round(B*10)/10,raw,C,D,S:Sx,risk,tier,streak,action,enroll,ov:ov.map(o=>o[0])}}
+
+function score(evs,t0,t1,ctx){
+  const f=features(evs,t0,t1),enough=f.total_events>=MIN_EV;let g=null,damp=1,model="too little activity";
+  if(enough){if(S.prof){g=calib(S.prof.F(S.prof.score(FEATS.map(k=>f[k]))),S.prof.tau,S.prof.med);model="personal"}
+    else{g=POP?popScore(FEATS.map(k=>f[k])):0;damp=.5;model="population"}}
+  const d=evaluate(g,damp,model,f,ctx);S.ewma=d.B;S.streak=d.streak;S.risk=d.risk;S.tier=d.tier;S.ok=false;
+  const why=d.ov.length?d.ov.join("; "):g==null?"no evidence, score kept":model==="population"?"cold start: trained baseline at half weight":d.tier==="HIGH"&&d.action==="monitor"?"below your threshold once; needs 2 in a row":d.raw>87?"below your personal threshold":d.raw>35?"unusual, but above your threshold":"matches your profile";
+  S.wins.push({i:S.wins.length+1,t:t1,model,ev:f.total_events,B:d.B,C:d.C,D:d.D,S:d.S,risk:d.risk,tier:d.tier,action:d.action,why});
+  let profChanged=false;
+  if(d.enroll){S.X.push(FEATS.map(k=>f[k]==null||!isFinite(f[k])?null:+f[k].toPrecision(6)));S.X=S.X.slice(-MAXP);S.since++;profChanged=true;
+    if((!S.prof&&S.X.length>=ENROLL)||(S.prof&&S.since>=RETRAIN))train()}
+  if(d.tier==="MEDIUM"&&S.wins.length>1&&S.wins[S.wins.length-2].tier==="LOW")logEv("risk_elevated","info",`risk ${d.risk}`);
+  if(d.action==="step_up")stepUp(d.ov[0]||"Your last two windows didn't match your usual pattern.");
+  if(d.action==="terminate"){end(d.ov.join("; ")||"critical risk score",true);return}
+  if(profChanged)saveProfile();
+  persist();render()}
+function tick(){if(!S.on||S.paused)return;const t1=Date.now(),evs=S.buf;S.buf=[];const t0=S.wStart;S.wStart=t1;const net=S.net;S.net=false;score(evs,t0,t1,{net,dev:false})}
+
+/* ---------- persistence ---------- */
+function logEv(kind,sev,detail){S.evs.unshift({t:Date.now(),kind,sev,detail})}
+function sessBody(){return{uid,sid:S.sid,status:S.on?(S.paused?"step_up":"active"):"ended",risk:S.risk,tier:S.tier,model:S.prof?"personal":"population",
+  started:S.started,lastSeen:Date.now(),windows:S.wins.slice(-40),events:S.evs.slice(0,60),stepups:S.stepups,profileN:S.prof?S.prof.n:0,enrolled:S.X.length,newDevice:S.newDev}}
+function persist(extra){if(mode!=="shared")return;const b=Object.assign(sessBody(),extra||{});write(()=>sess().update(b))}
+function saveProfile(extra){if(mode!=="shared")return;const b=Object.assign({},profDoc||{},{X:S.X.map(r=>({v:r})),n:S.X.length,trainedAt:S.prof?S.prof.at:0},extra||{});profDoc=b;write(()=>own("profile").set(b))}
+
+/* ---------- sign-in gate ---------- */
+function gate(title,info,form,confirm,btn){$("gTitle").textContent=title;$("gInfo").textContent=info;$("gForm").hidden=!form;$("pw2Wrap").hidden=!confirm;$("pw2").required=!!confirm;$("gBtn").textContent=btn||"Sign in";$("gErr").textContent=""}
+async function boot(){
+  const pop=fetch("population.json").then(r=>r.ok?r.json():null).then(j=>{POP=j}).catch(()=>{});
+  try{if(window.claude&&window.claude.use){[user,db]=await Promise.all([window.claude.use("user"),window.claude.use("db")])}}catch(e){}
+  try{uid=user?await user.id():null;isAdmin=user?!!(await user.canEdit()):false}catch(e){uid=null}
+  if(db&&uid){mode="shared";
+    try{const a=await own("account").get();account=a.exists?a.data():null}catch(e){account=null}
+    await pop;
+    if(account)gate("Welcome back","Enter your ContAuth password to start a monitored session.",true,false,"Sign in");
+    else gate("Create your ContAuth account","Your claude.ai sign-in identifies you. Choose a separate ContAuth password: it is used to sign in and for re-checks when your behaviour looks unusual.",true,true,"Create account");
+  }else{mode="local";db=null;await pop;
+    gate("Start a session","Shared storage isn't available in this view, so this session lives in this tab only: no saved profile and no admin dashboard. Choose a password for this session.",true,true,"Start");}
+}
+$("gForm").addEventListener("submit",async e=>{e.preventDefault();const pw=$("pw").value;$("gErr").textContent="";
+  if(pw.length<6){$("gErr").textContent="Use at least 6 characters.";return}
+  if(!$("pw2Wrap").hidden&&pw!==$("pw2").value){$("gErr").textContent="The two passwords don't match.";return}
+  $("gBtn").disabled=true;
+  try{
+    if(mode==="local"){localPw=pw;await startSession(null);return}
+    const cur=await sess().get(),cd=cur.exists?cur.data():null;
+    if(cd&&cd.lockedUntil>Date.now()){$("gErr").textContent=`Account locked after a security event. Try again in ${Math.ceil((cd.lockedUntil-Date.now())/60000)} min, or ask the admin to unlock it.`;return}
+    if(!account){const salt=crypto.getRandomValues(new Uint32Array(4)).join("-");const a={salt,hash:await pbkdf(pw,salt),created:Date.now()};await own("account").set(a);account=a}
+    else if(!(await checkPw(pw))){$("gErr").textContent="Wrong password.";return}
+    await startSession(cd)}
+  catch(err){$("gErr").textContent="Couldn't reach storage. Try again in a moment."}
+  finally{$("gBtn").disabled=false;$("pw").value="";$("pw2").value=""}});
+
+async function startSession(cd){
+  const keep=S.X;fresh();S.on=true;S.sid=crypto.getRandomValues(new Uint32Array(2)).join("");S.started=Date.now();S.wStart=Date.now();
+  S.dev=(await sha(navigator.userAgent+"|"+screen.width+"x"+screen.height+"|"+Intl.DateTimeFormat().resolvedOptions().timeZone+"|"+navigator.language)).slice(0,16);
+  if(mode==="shared"){
+    try{const p=await own("profile").get();profDoc=p.exists?p.data():{X:[],devices:[]}}catch(e){profDoc={X:[],devices:[]}}
+    S.X=(profDoc.X||[]).map(r=>r.v);const devs=(profDoc.devices||[]).slice();S.newDev=devs.length>0&&!devs.includes(S.dev);
+    if(cd&&cd.adminCmd&&cd.adminCmd.kind==="reset_profile"&&cd.adminCmd.t>(profDoc.resetSeen||0)){S.X=[];profDoc.resetSeen=cd.adminCmd.t;logEv("profile_reset","warning","profile reset by an admin")}
+    if(!devs.includes(S.dev))devs.push(S.dev);profDoc.devices=devs.slice(-10);
+    if(S.X.length>=ENROLL)train(true);
+    S.adminSeen=cd&&cd.adminCmd?cd.adminCmd.t:0;
+    const hist=((cd&&cd.history)||[]).slice();
+    if(cd&&cd.sid)hist.unshift({sid:cd.sid,started:cd.started||0,ended:cd.lastSeen||0,status:cd.status==="active"||cd.status==="step_up"?"replaced":cd.status||"ended",reason:cd.endReason||"",windows:(cd.windows||[]).length});
+    const replaced=cd&&(cd.status==="active"||cd.status==="step_up")&&Date.now()-cd.lastSeen<STALE;
+    logEv("login_success","info",S.newDev?"signed in from a device not seen before for this account":"session started");
+    if(S.newDev)logEv("new_device","warning","device fingerprint not seen before for this account");
+    if(replaced)logEv("session_replaced","warning","an open session elsewhere was closed by this sign-in");
+    saveProfile();
+    await sess().set(Object.assign(sessBody(),{history:hist.slice(0,10),lockedUntil:0,endReason:"",adminCmd:(cd&&cd.adminCmd)||null}));
+    ownUnsub=sess().onSnapshot(onOwnDoc,()=>{});
+  }else{S.X=keep;logEv("login_success","info","session started (this tab only)")}
+  S.timer=setInterval(tick,WIN);
+  $("gate").hidden=true;$("app").hidden=false;$("tabAdmin").hidden=!(mode==="shared"&&isAdmin);
+  $("whoami").textContent=mode==="shared"?(isAdmin?"Signed in · admin":"Signed in"):"Tab-only session";
+  showTab("work");loadNotes();if(mode==="shared"&&isAdmin)watchAdmin();render()}
+
+function onOwnDoc(snap){if(!S.on||!snap.exists)return;const d=snap.data();
+  if(d.sid&&d.sid!==S.sid){end("this account signed in again in another tab or on another device, so this session was closed",false,true);return}
+  const c=d.adminCmd;if(c&&c.t>S.adminSeen){S.adminSeen=c.t;
+    if(c.kind==="terminate"){logEv("admin_terminated","critical","session terminated by an admin");end("terminated by an administrator",!!c.lock,true)}
+    if(c.kind==="reset_profile"){S.X=[];S.prof=null;S.since=0;logEv("profile_reset","warning","profile reset by an admin; enrollment restarts");saveProfile({resetSeen:c.t});persist();render()}}}
+
+/* ---------- flows ---------- */
+function stepUp(why,onCancel){S.paused=true;S.stepCancel=onCancel||null;$("stepCancel").hidden=!onCancel;$("stepWhy").textContent=why;$("stepErr").textContent="";$("stepPw").value="";
+  $("ovStep").classList.add("on");logEv("stepup_required","warning",why);persist();setTimeout(()=>$("stepPw").focus(),50)}
+function end(why,lock,remote){if(!S.on)return;S.on=false;clearInterval(S.timer);$("ovStep").classList.remove("on");
+  logEv("session_terminated",lock?"critical":"warning",why);
+  if(mode==="shared"){if(ownUnsub){ownUnsub();ownUnsub=null}
+    if(!(remote&&!lock&&why.startsWith("this account"))){const ex={status:"terminated",endReason:why};if(lock&&!remote)ex.lockedUntil=Date.now()+LOCK_MS;persist(ex)}}
+  $("endWhy").textContent="Reason: "+why+".";
+  $("endLock").textContent=lock?(mode==="shared"?"The account is locked for 15 minutes. An admin can unlock it sooner.":"In the shared version the account is also locked for 15 minutes."):"";
+  $("ovEnd").classList.add("on");render()}
+$("stepForm").addEventListener("submit",async e=>{e.preventDefault();
+  if(await checkPw($("stepPw").value)){S.paused=false;S.fails=0;S.tier="MEDIUM";S.risk=35;S.ewma=30;S.streak=0;S.buf=[];S.wStart=Date.now();S.ok=true;S.stepups++;
+    $("ovStep").classList.remove("on");logEv("stepup_passed","info","password confirmed, risk reset");const f=S.stepCancel;S.stepCancel=null;persist();render();if(f&&f.after)f.after();return}
+  S.fails++;logEv("stepup_failed","warning",`attempt ${S.fails} of 3`);
+  if(S.fails>=3){end("too many failed password re-checks",true);return}
+  $("stepErr").textContent=`Wrong password. ${3-S.fails} attempt(s) left before the session is closed.`;$("stepPw").value="";persist();render()});
+$("stepCancel").addEventListener("click",()=>{$("ovStep").classList.remove("on");S.paused=false;S.buf=[];S.wStart=Date.now();S.stepCancel=null;showTab("work")});
+function leave(){if(adminUnsub){adminUnsub();adminUnsub=null}fresh();$("app").hidden=true;$("gate").hidden=false;gate("Connecting…","Checking your account.",false);boot();render()}
+$("restart").addEventListener("click",()=>{$("ovEnd").classList.remove("on");leave()});
+$("signout").addEventListener("click",()=>{if(!S.on)return;S.on=false;clearInterval(S.timer);logEv("signed_out","info","user signed out");
+  if(mode==="shared"){if(ownUnsub){ownUnsub();ownUnsub=null}persist({status:"ended",endReason:"user signed out"})}leave()});
+$("aNet").addEventListener("click",()=>{S.net=true;logEv("context","info","next window will come from IP 203.0.113.9");render()});
+$("aCookie").addEventListener("click",()=>{logEv("cookie_replay","critical","same session cookie, different browser identity");end("session cookie replayed from a different browser (session binding mismatch)",true)});
+$("aBot").addEventListener("click",()=>{if(S.bot||!S.on)return;tick();if(!S.on||S.paused)return;S.bot=true;const dot=$("botdot"),evs=[],t0=Date.now();let k=0;dot.style.display="block";render();
+  const iv=setInterval(()=>{const x=80+6*k;dot.style.left=(x%Math.max(innerWidth-40,200))+"px";dot.style.top=Math.round(innerHeight*.45)+"px";evs.push({t:Date.now(),type:"mousemove",x:100+6*k,y:300});k++;
+    if(k>=150){clearInterval(iv);dot.style.display="none";S.bot=false;S.buf=[];const t1=Date.now();S.wStart=t1;logEv("bot_run","info","script moved the pointer 150 times by exactly 6 px");score(evs,t0,t1,{net:false,dev:false})}},20)});
+
+/* ---------- tabs, notes, settings ---------- */
+function showTab(t){
+  if(t==="set"&&S.on&&(S.tier==="HIGH"||S.tier==="CRITICAL")){logEv("sensitive_blocked","warning","settings opened while trust was low");
+    const cb=()=>{};cb.after=()=>showTab("set");stepUp("Settings is protected and your session is currently high risk. Confirm your password to open it.",cb);return}
+  S.tab=t;["work","notes","set","admin"].forEach(k=>{$("p-"+k).hidden=k!==t});document.querySelectorAll("#tabs [data-t]").forEach(b=>b.classList.toggle("on",b.dataset.t===t));render();if(t==="admin")renderAdmin()}
+$("tabs").addEventListener("click",e=>{const b=e.target.closest("[data-t]");if(b)showTab(b.dataset.t)});
+let notes=[];
+async function loadNotes(){notes=[];if(mode==="shared"){try{const n=await own("notes").get();notes=n.exists?(n.data().items||[]).slice():[]}catch(e){}}renderNotes()}
+function renderNotes(){$("noteList").innerHTML=notes.length?notes.map(n=>`<div class="notei"><strong>${esc(n.title)}</strong> <span class="note">${new Date(n.t).toLocaleString()}</span><p>${esc(n.body)}</p></div>`).join(""):`<p class="note">No notes yet.</p>`}
+$("noteForm").addEventListener("submit",e=>{e.preventDefault();notes.unshift({t:Date.now(),title:$("nt").value.trim(),body:$("nb").value.trim()});notes=notes.slice(0,100);
+  $("nt").value="";$("nb").value="";renderNotes();if(mode==="shared"){const items=notes.slice();write(()=>own("notes").set({items}))}});
+$("setForm").addEventListener("submit",async e=>{e.preventDefault();$("setErr").textContent="";$("setOk").textContent="";
+  if(!(await checkPw($("so").value))){$("setErr").textContent="Current password is wrong.";return}
+  const n=$("sn").value;if(n.length<6){$("setErr").textContent="Use at least 6 characters.";return}
+  if(mode==="shared"){const salt=crypto.getRandomValues(new Uint32Array(4)).join("-");const a={salt,hash:await pbkdf(n,salt),created:account.created};account=a;write(()=>own("account").set(a))}else localPw=n;
+  logEv("password_changed","info","ContAuth password changed");$("so").value="";$("sn").value="";$("setOk").textContent="Password updated.";persist();render()});
+$("resetMine").addEventListener("click",()=>{S.X=[];S.prof=null;S.since=0;logEv("profile_reset","info","you reset your profile");saveProfile();persist();render()});
+
+/* ---------- admin ---------- */
+function watchAdmin(){if(adminUnsub||!db)return;
+  adminUnsub=db.collection("sessions").onSnapshot(s=>{adminRows=s.docs.map(d=>Object.assign({id:d.id},d.data()));resolveNames();renderAdmin()},()=>{})}
+async function resolveNames(){if(!user||!user.profiles)return;const ids=adminRows.map(r=>r.id).filter(i=>!(i in names));if(!ids.length)return;
+  ids.forEach(i=>names[i]="");try{const ps=await user.profiles(ids);ids.forEach(i=>{names[i]=(ps&&ps[i]&&ps[i].name)||""});renderAdmin()}catch(e){}}
+const nm=id=>id===uid?"You":names[id]||"User "+String(id).slice(0,6);
+const live=r=>(r.status==="active"||r.status==="step_up")&&Date.now()-r.lastSeen<STALE;
+function statusOf(r){if(live(r))return r.status==="step_up"?"awaiting re-check":"active";if(r.status==="active"||r.status==="step_up")return"inactive (page closed)";return r.status||"—"}
+function spark(ws){const v=(ws||[]).slice(-30).map(w=>w.risk);if(!v.length)return'<span class="note">—</span>';const w=110,h=24,n=Math.max(v.length-1,1),last=v[v.length-1];
+  const c=last>80?"var(--crit)":last>60?"var(--high)":last>30?"var(--med)":"var(--low)";
+  return`<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline fill="none" stroke="${c}" stroke-width="1.8" points="${v.map((x,i)=>`${(i/n*w).toFixed(1)},${(h-x/100*h).toFixed(1)}`).join(" ")}"/></svg>`}
+function renderAdmin(){if(S.tab!=="admin")return;const rows=adminRows.slice().sort((a,b)=>(live(b)-live(a))||((b.lastSeen||0)-(a.lastSeen||0)));
+  const evs=[];rows.forEach(r=>(r.events||[]).forEach(e=>evs.push(Object.assign({u:r.id},e))));evs.sort((a,b)=>b.t-a.t);
+  const day=Date.now()-864e5;
+  $("kpis").innerHTML=[["Live sessions",rows.filter(live).length],["Awaiting re-check",rows.filter(r=>live(r)&&r.status==="step_up").length],["Terminated (24 h)",evs.filter(e=>e.kind==="session_terminated"&&e.t>day).length],["Locked accounts",rows.filter(r=>r.lockedUntil>Date.now()).length],["Enrolled profiles",rows.filter(r=>r.profileN>0).length]].map(([l,v])=>`<div class="card kpi"><b>${v}</b><span>${l}</span></div>`).join("");
+  $("aSessions").innerHTML=rows.length?rows.map(r=>`<tr class="click" data-u="${esc(r.id)}"><td>${esc(nm(r.id))}${r.lockedUntil>Date.now()?' <span class="chip CRITICAL">locked</span>':""}</td><td>${esc(statusOf(r))}${r.endReason?`<div class="note">${esc(r.endReason)}</div>`:""}</td><td><span class="chip ${esc(r.tier||"NONE")}">${esc(r.tier||"—")}</span></td><td class="num">${Math.round(r.risk||0)}</td><td>${spark(r.windows)}</td><td class="num hide-s">${(r.windows||[]).length}</td><td class="hide-s">${r.profileN?`personal (${r.profileN})`:`enrolling ${r.enrolled||0}/${ENROLL}`}</td><td class="hide-s">${fmtT(r.lastSeen)}</td></tr>`).join(""):`<tr><td colspan="8" class="note">No sessions yet. Share this page with Contributor access so others can sign in.</td></tr>`;
+  const fe=evs.filter(e=>!sevF||e.sev===sevF).slice(0,200);
+  $("aEvents").innerHTML=fe.length?fe.map(e=>`<tr><td class="num">${fmtT(e.t)}</td><td>${esc(nm(e.u))}</td><td class="sev-${esc(e.sev)}">${esc(String(e.kind).replace(/_/g," "))}</td><td class="hide-s note">${esc(e.detail)}</td></tr>`).join(""):`<tr><td colspan="4" class="note">No events.</td></tr>`;
+  document.querySelectorAll("#sevFilter button").forEach(b=>b.classList.toggle("on",b.dataset.s===sevF));
+  renderDetail()}
+$("aSessions").addEventListener("click",e=>{const tr=e.target.closest("[data-u]");if(tr){if(adminSel!==tr.dataset.u)dMsg="";adminSel=tr.dataset.u;renderDetail();$("aDetail").scrollIntoView({block:"start"})}});
+$("sevFilter").addEventListener("click",e=>{const b=e.target.closest("[data-s]");if(b){sevF=b.dataset.s;renderAdmin()}});
+let dMsg="";
+function renderDetail(){const box=$("aDetail"),r=adminRows.find(x=>x.id===adminSel);if(!r){box.hidden=true;return}box.hidden=false;
+  const ws=r.windows||[],locked=r.lockedUntil>Date.now(),lockWas=$("dLock")?$("dLock").checked:false;
+  box.innerHTML=`<h2>Session · ${esc(nm(r.id))}</h2>
+  <p class="note">Status: ${esc(statusOf(r))} · started ${fmtT(r.started)} · ${r.newDevice?"new device for this account · ":""}${r.stepups||0} re-checks passed${locked?` · locked until ${fmtT(r.lockedUntil)}`:""}</p>
+  <div class="row"><label style="margin:0;display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="dLock" ${lockWas?"checked":""}> also lock account</label>
+  <button class="danger" id="dTerm" ${live(r)?"":"disabled"}>Terminate session</button><button class="alt" id="dUnlock" ${locked?"":"disabled"}>Unlock account</button><button class="alt" id="dReset">Reset profile</button><button class="alt" id="dClose">Close</button></div>
+  <p class="ok" id="dMsg">${esc(dMsg)}</p>
+  <div class="fig"><svg id="dChart" role="img" aria-label="Risk per window for this session"></svg></div>
+  <div class="scroll" style="margin-top:12px"><table><thead><tr><th>#</th><th>Model</th><th class="num">B</th><th class="num">C</th><th class="num">D</th><th class="num">S</th><th class="num">Risk</th><th>Decision</th><th class="hide-s">Why</th></tr></thead><tbody>
+  ${ws.slice().reverse().map(w=>`<tr><td class="num">${w.i}</td><td>${esc(w.model)}</td><td class="num">${w.B}</td><td class="num">${w.C}</td><td class="num">${w.D}</td><td class="num">${w.S}</td><td class="num">${w.risk}</td><td><span class="chip ${esc(w.tier)}">${esc(w.tier)}</span> ${esc(String(w.action).replace("_"," "))}</td><td class="hide-s note">${esc(w.why)}</td></tr>`).join("")||'<tr><td colspan="9" class="note">No windows.</td></tr>'}</tbody></table></div>
+  ${(r.history||[]).length?`<h3 style="margin-top:16px">Earlier sessions</h3><table><tbody>${r.history.map(h=>`<tr><td class="num">${fmtT(h.started)}</td><td>${esc(h.status)}</td><td class="note">${esc(h.reason)}</td><td class="num">${h.windows} windows</td></tr>`).join("")}</tbody></table>`:""}`;
+  draw($("dChart"),ws);
+  const cmd=(o,msg)=>{dMsg=msg;write(()=>sess(r.id).update(o));$("dMsg").textContent=msg};
+  $("dTerm").onclick=()=>{const lock=$("dLock").checked,t=Date.now(),o={adminCmd:{kind:"terminate",lock,by:uid,t},status:"terminated",endReason:"terminated by an administrator"};if(lock)o.lockedUntil=t+LOCK_MS;cmd(o,"Terminate sent. The user's open page closes within seconds.")};
+  $("dUnlock").onclick=()=>cmd({lockedUntil:0},"Account unlocked.");
+  $("dReset").onclick=()=>cmd({adminCmd:{kind:"reset_profile",by:uid,t:Date.now()}},"Profile reset sent. It applies now if the user is online, otherwise at their next sign-in.");
+  $("dClose").onclick=()=>{adminSel=null;dMsg="";renderDetail()}}
+
+/* ---------- render ---------- */
+const col={LOW:"var(--low)",MEDIUM:"var(--med)",HIGH:"var(--high)",CRITICAL:"var(--crit)"};
+function render(){
+  const last=S.wins[S.wins.length-1],has=S.on||last;
+  $("riskN").textContent=has?Math.round(S.risk):"–";
+  $("arc").setAttribute("stroke-dasharray",`${(has?S.risk:0)/100*264} 264`);$("arc").setAttribute("stroke",col[S.tier]||"var(--org)");
+  $("tierChip").className="chip "+(has?S.tier:"NONE");$("tierChip").textContent=has?S.tier+" risk":"Not signed in";
+  $("actionTxt").textContent=!has?"Waiting for sign-in.":!S.on?"Session ended.":S.paused?"Password re-check required.":S.bot?"A bot is driving the session…":S.ok?"Password confirmed: session continues.":last?{allow:"Allowed: session continues.",monitor:"Monitoring more closely.",step_up:"Password re-check required.",terminate:"Session terminated."}[last.action]:"Collecting the first window…";
+  $("modelTxt").textContent=S.prof?`Model: your personal profile (${S.prof.n} windows)`:S.on?`Model: trained baseline, learning you (${S.X.length}/${ENROLL})`:"Model: none yet";
+  $("nextTxt").textContent=S.net?"Next window: from a new network":S.on&&S.newDev?"New device for this account":"";
+  $("enrollHint").textContent=S.prof?"Profile active. Keep working normally, or hand the keyboard and mouse to someone else and watch the risk.":`Building your profile: ${S.X.length} of ${ENROLL} windows. Keep typing and moving the mouse for about ${Math.max(0,(ENROLL-S.X.length)*5)} more seconds.`;
+  $("profInfo").textContent=S.prof?`Active: trained on ${S.prof.n} of your windows, personal threshold ${S.prof.tau.toFixed(3)}. It retrains every ${RETRAIN} new clean windows.`:`Enrolling: ${S.X.length} of ${ENROLL} clean windows collected${mode==="shared"?", saved to your account":""}.`;
+  ["aNet","aBot","aCookie"].forEach(id=>$(id).disabled=!S.on||S.paused||S.bot);
+  const b=last||{B:0,C:0,D:0,S:0};
+  $("bars").innerHTML=[["Behaviour B",b.B,.7],["Context C",b.C,.1],["Device D",b.D,.1],["Session S",b.S,.1]].map(([n,v,w])=>`<div class="bar"><span>${n} <span class="note">×${w}</span></span><div class="track"><i style="width:${v}%"></i></div><span class="num">${Math.round(v)}</span></div>`).join("");
+  $("wins").innerHTML=S.wins.length?S.wins.slice().reverse().map(w=>`<tr><td class="num">${w.i}</td><td>${esc(w.model)}</td><td class="num">${w.ev}</td><td class="num">${w.B}</td><td class="num">${w.risk}</td><td><span class="chip ${w.tier}">${w.tier}</span> ${w.action.replace("_"," ")}</td><td class="hide-s note">${esc(w.why)}</td></tr>`).join(""):`<tr><td colspan="7" class="note">The first window is scored 5 seconds after sign-in.</td></tr>`;
+  $("events").innerHTML=S.evs.length?S.evs.slice(0,30).map(e=>`<div class="ev"><span class="t">${fmtT(e.t)}</span><span><span class="sev-${e.sev}">${esc(e.kind.replace(/_/g," "))}</span> · ${esc(e.detail)}</span></div>`).join(""):`<p class="note">No events yet.</p>`;
+  draw($("chart"),S.wins)}
+function draw(svg,wins){if(!svg)return;const Wd=svg.clientWidth,H=svg.clientHeight;if(!Wd||!H)return;const L=Wd<520?6:30,P=8,y=v=>P+(1-v/100)*(H-2*P);
+  let o=[[0,30,"var(--low)"],[30,60,"var(--med)"],[60,80,"var(--high)"],[80,100,"var(--crit)"]].map(([a,b,c])=>`<rect x="${L}" width="${Wd-L}" y="${y(b)}" height="${y(a)-y(b)}" fill="${c}" opacity=".1"/>`).join("");
+  if(Wd>=520)o+=[0,30,60,80,100].map(v=>`<text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--mut)">${v}</text>`).join("");
+  const ws=(wins||[]).slice(-40);
+  if(ws.length){const n=Math.max(ws.length-1,1),x=i=>L+8+i/n*(Wd-L-16);
+    o+=`<polyline fill="none" stroke="var(--ink)" stroke-width="2.2" points="${ws.map((w,i)=>`${x(i)},${y(w.risk)}`).join(" ")}"/>`;
+    o+=ws.map((w,i)=>`<circle cx="${x(i)}" cy="${y(w.B)}" r="3.2" fill="var(--org)"><title>window ${w.i}: risk ${w.risk}, behaviour ${w.B}</title></circle>`).join("")}
+  else o+=`<text x="${Wd/2}" y="${H/2}" text-anchor="middle" font-size="14" fill="var(--mut)">Risk appears here every 5 seconds</text>`;
+  svg.innerHTML=o}
+new ResizeObserver(()=>{draw($("chart"),S.wins);const r=adminRows.find(x=>x.id===adminSel);if(r)draw($("dChart"),r.windows)}).observe(document.body);
+setInterval(()=>{if(S.tab==="admin")renderAdmin()},10000);
+render();boot();
+}
+</script>
+</body>
+</html>

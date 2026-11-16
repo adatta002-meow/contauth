@@ -18,7 +18,9 @@ Browser (capture.js)          Flask app                         ML layer        
 
 ## Run it
 
-To put it on the internet, see **[DEPLOY.md](DEPLOY.md)** (free Render deploy, about 10 minutes).
+Live web version: https://claude.ai/artifact/KAb1aZAwSASBqGaHgyrKzj (source in `web/`).
+
+To put the server version on the internet, see **[DEPLOY.md](DEPLOY.md)** (free Render deploy, about 10 minutes).
 
 
 ```bash

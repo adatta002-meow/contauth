@@ -1,0 +1,6 @@
+# Desktop agent dependencies (in addition to requirements.txt).
+# Tkinter ships with the standard CPython installer on Windows and macOS; on Linux
+# install it from the system package manager (e.g. `sudo apt install python3-tk`).
+pynput==1.7.7
+# Optional second factor (camera presence check). Only needed with --face:
+# opencv-python==4.11.0.86

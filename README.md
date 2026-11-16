@@ -20,6 +20,8 @@ Browser (capture.js)          Flask app                         ML layer        
 
 Live web version: https://claude.ai/artifact/KAb1aZAwSASBqGaHgyrKzj (source in `web/`).
 
+Desktop agent (continuous authentication for the whole machine, not just a web page): see **[contauth/agent/README.md](contauth/agent/README.md)** — `python -m contauth.agent`.
+
 To put the server version on the internet, see **[DEPLOY.md](DEPLOY.md)** (free Render deploy, about 10 minutes).
 
 

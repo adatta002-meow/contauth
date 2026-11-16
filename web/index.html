@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ContAuth Live System</title>
+<meta name="description" content="ContAuth: continuous authentication for web sessions using behavioural biometrics and Zero Trust controls. A live system trained on 705 real sessions.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -146,37 +147,177 @@ tr.click{cursor:pointer}tr.click:hover td{background:rgb(63 198 240/.07)}
 @media(max-width:900px){.hero .in,.grid{grid-template-columns:minmax(0,1fr)}.steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){table{font-size:13px}.bar{grid-template-columns:120px minmax(0,1fr) 40px}.hide-s{display:none}.tabs button span.lbl{display:none}.steps{grid-template-columns:minmax(0,1fr)}.bar0 .who{display:none}.vx{display:none}.viz{height:360px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* ===== premium layer: dark field, glass, floating windows, motion ===== */
+:root{--vi:#8b5cf6;--glass:rgb(14 26 46/.55);--gline:rgb(140 190 255/.16)}
+html{scroll-behavior:smooth;scroll-padding-top:70px}
+body{background:var(--bg)}
+body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none;background:radial-gradient(40% 35% at 20% 25%,rgb(63 198 240/.10),transparent 70%),radial-gradient(35% 30% at 80% 70%,rgb(139 92 246/.10),transparent 70%),radial-gradient(30% 30% at 60% 20%,rgb(255 122 26/.05),transparent 70%);animation:drift 26s ease-in-out infinite alternate}
+@keyframes drift{to{transform:translate3d(4%,-3%,0) rotate(6deg)}}
+.prog{position:fixed;top:0;left:0;height:3px;width:0;z-index:12;background:linear-gradient(90deg,var(--cy),var(--vi),var(--org))}
+#loader{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:#050b16;transition:opacity .6s,visibility .6s}
+#loader.done{opacity:0;visibility:hidden}
+#loader svg{width:64px;height:64px;animation:lpulse 1.4s ease-in-out infinite}
+#loader p{color:#93a6bd;font-size:14px;margin:14px 0 0;text-align:center}
+@keyframes lpulse{50%{transform:scale(1.12);filter:drop-shadow(0 0 18px #3fc6f0)}}
+.navl{display:flex;gap:4px;flex-wrap:wrap}
+.navl a{color:#b8c7da;text-decoration:none;font-size:14px;padding:8px 10px;border-radius:8px;transition:color .2s,background .2s}
+.navl a:hover,.navl a.on{color:#fff;background:rgb(255 255 255/.07)}
+/* hero */
+.hero2{position:relative;min-height:calc(100svh - 58px);background:radial-gradient(900px 600px at 72% 45%,#10305c 0%,transparent 62%),radial-gradient(600px 500px at 15% 80%,rgb(139 92 246/.18),transparent 65%),linear-gradient(180deg,#050b16,#081428);color:var(--hi);overflow:hidden;display:flex;align-items:center}
+.hero2 .in{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.25fr);gap:clamp(16px,3vw,40px);align-items:center;max-width:1320px;width:100%;margin:0 auto;padding:clamp(28px,4vw,48px) max(4vw,16px)}
+.hero2 h1{font-size:clamp(40px,5.6vw,72px);line-height:1.02}
+.hero2 h1 .w{display:inline-block;opacity:0;transform:translateY(.5em);animation:wup .8s var(--ease) forwards;animation-delay:calc(var(--i)*70ms + .35s)}
+.grad{background:linear-gradient(100deg,#7fe0ff,#a78bfa 55%,#ffb27a);-webkit-background-clip:text;background-clip:text;color:transparent}
+@keyframes wup{to{opacity:1;transform:none}}
+.hero2 .lede{color:#b8c7da;font-size:18px;max-width:52ch}
+.fadein{animation:wfrom .9s var(--ease) backwards;animation-delay:var(--dl,1s)}
+@keyframes wfrom{from{opacity:0;transform:translateY(18px)}}
+.ctas{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+.btn{display:inline-flex;align-items:center;gap:10px;min-height:48px;padding:0 22px;border-radius:12px;font:600 16px Inter,sans-serif;text-decoration:none;cursor:pointer;transition:box-shadow .3s,background .3s}
+.btn svg{width:18px;height:18px}
+.btn.cta{background:linear-gradient(135deg,#3fc6f0,#6d7cff);color:#050b16;box-shadow:0 10px 30px rgb(63 198 240/.3)}
+.btn.cta:hover{box-shadow:0 14px 44px rgb(109 124 255/.5)}
+.btn.ghost{color:#e7eef8;border:1px solid rgb(255 255 255/.18);background:rgb(255 255 255/.04)}
+.btn.ghost:hover{background:rgb(255 255 255/.09)}
+.trust{margin-top:22px;font-size:14px;color:#93a6bd;display:flex;flex-wrap:wrap;gap:6px 16px}
+.trust span::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--cy);margin-right:8px;vertical-align:2px}
+.stage{position:relative;height:clamp(690px,50vw,730px);perspective:1400px}
+.stage .viz{position:absolute;inset:6% 18%;border:0;background:radial-gradient(closest-side,rgb(63 198 240/.13),transparent);border-radius:50%;overflow:visible}
+.stage .vtag{display:none}
+.stage .legend{left:22%;right:22%;top:-34px;bottom:auto;justify-content:center;text-align:center}
+.fw{position:absolute;width:236px;z-index:2;transform-style:preserve-3d;will-change:transform}
+.fw .fi{animation:flo var(--dur,7s) ease-in-out infinite;animation-delay:var(--dl,0s)}
+@keyframes flo{0%,100%{transform:translate3d(0,0,0) rotateZ(0)}33%{transform:translate3d(var(--ax,6px),calc(var(--ay,10px)*-1),0) rotateZ(var(--az,.6deg))}66%{transform:translate3d(calc(var(--ax,6px)*-.6),var(--ay,10px),0) rotateZ(calc(var(--az,.6deg)*-1))}}
+.gw{background:var(--glass);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);border:1px solid var(--gline);border-radius:16px;padding:14px 16px;box-shadow:0 20px 50px rgb(0 0 0/.45),inset 0 1px 0 rgb(255 255 255/.06);color:#e7eef8;transition:box-shadow .35s,border-color .35s}
+.fw.hov .gw{border-color:rgb(127 224 255/.5);box-shadow:0 26px 70px rgb(0 0 0/.55),0 0 34px rgb(63 198 240/.25),inset 0 1px 0 rgb(255 255 255/.1)}
+.fw.hov{z-index:5}
+.gw h4{margin:0 0 10px;font:600 12px Inter,sans-serif;color:#93a6bd;display:flex;align-items:center;gap:8px;letter-spacing:.02em}
+.gw h4 svg{width:15px;height:15px;color:var(--cy)}
+.gw .meter{margin:0;padding:0;border:0;background:none;gap:14px}
+.gw .ring{width:96px}.gw .ring b{font-size:30px}.gw .ring small{font-size:10px;bottom:20%}
+.gw .stat{font-size:13px;margin:6px 0 0}
+.w1{top:2%;left:0}.w2{top:1%;right:0}.w3{top:39%;left:-2%}.w4{top:30%;right:-1%}.w5{bottom:1%;left:3%}.w6{bottom:0;right:2%;width:200px}
+.nlist{display:grid;gap:8px;font-size:13px}.nlist div{display:grid;grid-template-columns:8px minmax(0,1fr);gap:8px;align-items:start;color:#c9d6e6}
+.nlist i{width:8px;height:8px;border-radius:50%;margin-top:5px;background:var(--cy)}.nlist i.warning{background:var(--high)}.nlist i.critical{background:var(--crit)}.nlist small{display:block;color:#7f93ab;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hwChart{display:block;width:100%;height:78px}
+.pcard{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;align-items:center}
+.pcard .av{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font:600 18px Outfit;background:linear-gradient(135deg,#3fc6f0,#8b5cf6);color:#050b16}
+.gw .stepper{flex-direction:column;gap:6px;margin-top:12px}.gw .stepper span{padding:4px 10px 4px 4px;font-size:12px}.gw .stepper i{width:18px;height:18px;font-size:10px}
+.alist{display:grid;gap:6px;font-size:13px}.alist div{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:8px;align-items:center;color:#c9d6e6}
+.mnav{display:grid;gap:4px}.mnav a{padding:5px 10px!important}.mnav a{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#c9d6e6;text-decoration:none;padding:7px 10px;border-radius:9px;background:rgb(255 255 255/.04);transition:background .2s,color .2s}
+.mnav a:hover{background:rgb(63 198 240/.14);color:#fff}
+.cue{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);color:#7f93ab;font-size:12px;text-decoration:none;display:grid;justify-items:center;gap:6px}
+.cue i{width:22px;height:34px;border:1.5px solid #4a5f7a;border-radius:12px;position:relative}.cue i::after{content:"";position:absolute;left:50%;top:6px;width:3px;height:7px;border-radius:2px;background:var(--cy);transform:translateX(-50%);animation:cue 1.6s infinite}
+@keyframes cue{to{transform:translate(-50%,12px);opacity:0}}
+/* sections */
+.sec{position:relative}
+.sh{max-width:760px;margin-bottom:28px}
+.kick{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--cy);margin-bottom:10px}
+.kick::before{content:"";width:18px;height:2px;background:linear-gradient(90deg,var(--cy),var(--vi))}
+.big{font-size:clamp(30px,3.8vw,46px);margin-bottom:12px}
+.sh p{color:var(--mut);font-size:17px;margin:0}
+[data-rv]{opacity:0;transform:translateY(26px);transition:opacity .8s var(--ease),transform .8s var(--ease);transition-delay:var(--d,0s)}
+[data-rv].in{opacity:1;transform:none}
+.cards3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;perspective:1200px}
+.c3{position:relative;border-radius:18px;padding:24px;background:linear-gradient(160deg,var(--panel),var(--panel2));border:1px solid var(--line);box-shadow:var(--shadow);transform-style:preserve-3d;transition:transform .25s var(--ease),box-shadow .3s,border-color .3s;overflow:hidden}
+.c3::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(240px circle at var(--px,50%) var(--py,0%),rgb(63 198 240/.14),transparent 60%);opacity:0;transition:opacity .3s}
+.c3:hover{border-color:rgb(63 198 240/.45);box-shadow:0 24px 60px rgb(10 30 60/.25),0 0 30px rgb(63 198 240/.12)}
+.c3:hover::after{opacity:1}
+.c3 .ico{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,rgb(63 198 240/.18),rgb(139 92 246/.18));color:var(--cy);margin-bottom:16px;transform:translateZ(30px)}
+.c3 .ico svg{width:24px;height:24px}
+.c3 h3{font-size:19px;margin-bottom:8px;transform:translateZ(20px)}.c3 p{color:var(--mut);margin:0;font-size:15px}
+.c3 .n{font:600 13px Inter;color:var(--org)}
+.show{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+.sc{display:block;text-decoration:none;color:inherit;border-radius:18px;overflow:hidden;border:1px solid var(--line);background:var(--panel);box-shadow:var(--shadow);transition:transform .35s var(--ease),box-shadow .35s,border-color .35s}
+.sc:hover{transform:translateY(-6px);border-color:rgb(139 92 246/.45);box-shadow:0 28px 60px rgb(10 30 60/.3)}
+.pv{height:170px;position:relative;overflow:hidden;background:linear-gradient(160deg,#071327,#0f2346)}
+.pv>*{transition:transform .6s var(--ease)}.sc:hover .pv>*{transform:scale(1.05) translateY(-4px)}
+.sc .bd{padding:18px 20px}.sc h3{font-size:18px;margin-bottom:6px}.sc p{margin:0;color:var(--mut);font-size:15px}
+.sc .go{display:inline-flex;gap:6px;align-items:center;margin-top:12px;font-weight:600;font-size:14px;color:var(--cy)}
+.sc .go svg{width:16px;height:16px;transition:transform .3s}.sc:hover .go svg{transform:translateX(4px)}
+.mock{position:absolute;inset:16px;border-radius:10px;background:rgb(255 255 255/.04);border:1px solid rgb(255 255 255/.08);padding:12px;font:12px/1.5 ui-monospace,Menlo,monospace;color:#8fb3ff}
+.mock .ln{height:7px;border-radius:4px;background:rgb(143 179 255/.22);margin:7px 0}
+.mock .bars2{display:flex;align-items:flex-end;gap:6px;height:80px;margin-top:8px}.mock .bars2 i{flex:1;border-radius:4px 4px 0 0;background:linear-gradient(180deg,#3fc6f0,#6d7cff)}
+.statg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.st{border-radius:18px;padding:22px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow)}
+.st b{display:block;font:600 clamp(34px,4vw,48px)/1 Outfit,sans-serif;background:linear-gradient(100deg,var(--cy),var(--vi));-webkit-background-clip:text;background-clip:text;color:transparent;font-variant-numeric:tabular-nums}
+.st span{display:block;margin-top:8px;color:var(--mut);font-size:15px}
+.opg{display:grid;gap:14px}
+.op{display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;align-items:center;font-size:14px}
+.op .tr{display:grid;gap:5px}.op .tr div{display:grid;grid-template-columns:minmax(0,1fr) 54px;gap:8px;align-items:center}
+.op .tr i{display:block;height:10px;border-radius:99px;width:0;transition:width 1.2s var(--ease)}
+.op .fa{background:linear-gradient(90deg,var(--org),#ffb27a)}.op .fr{background:linear-gradient(90deg,var(--vi),#a78bfa)}
+.fbw{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.fb{border-radius:18px;padding:20px;background:linear-gradient(160deg,rgb(63 198 240/.06),rgb(139 92 246/.06)),var(--panel);border:1px solid var(--line);backdrop-filter:blur(10px);box-shadow:var(--shadow)}
+.fb q{display:block;font-size:16px;quotes:"\201C" "\201D"}.fb .by{margin-top:14px;display:flex;gap:10px;align-items:center;font-size:14px;color:var(--mut)}
+.fb .by .av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:600 13px Outfit;background:linear-gradient(135deg,#3fc6f0,#8b5cf6);color:#050b16}
+.contact{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(18px,3vw,40px);align-items:start}
+.field{position:relative;margin-top:14px}
+.field input,.field textarea,.field select{width:100%;padding:20px 14px 8px;font:16px Inter,sans-serif;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:12px}
+.field select{appearance:none;padding-top:20px}
+.field label{position:absolute;left:14px;top:14px;margin:0;font-size:15px;color:var(--mut);pointer-events:none;transition:all .2s var(--ease)}
+.field input:focus+label,.field input:not(:placeholder-shown)+label,.field textarea:focus+label,.field textarea:not(:placeholder-shown)+label,.field select+label{top:5px;font-size:12px;color:var(--cy)}
+.field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--cy);box-shadow:0 0 0 4px rgb(63 198 240/.16)}
+footer.ft{border-top:1px solid var(--line);background:var(--panel2)}
+.ftg{display:grid;grid-template-columns:minmax(0,1.4fr) repeat(2,minmax(0,1fr));gap:24px}
+.ftg a{color:var(--mut);text-decoration:none;display:inline-block;padding:4px 0;transition:color .2s,transform .2s}.ftg a:hover{color:var(--cy);transform:translateX(3px)}
+.ftg h4{margin:0 0 10px;font:600 14px Inter}
+.soc{display:inline-flex!important;align-items:center;gap:8px}.soc svg{width:18px;height:18px}
+@media(max-width:1180px){.stage{height:auto;perspective:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+ .stage .viz{position:relative;inset:auto;grid-column:1/-1;height:340px;border-radius:18px}
+ .fw{position:relative;inset:auto!important;width:auto!important;transform:none!important}.fw .fi{animation:none}.w6{display:none}}
+@media(max-width:900px){.hero2 .in,.contact,.ftg{grid-template-columns:minmax(0,1fr)}.cards3,.statg{grid-template-columns:repeat(2,minmax(0,1fr))}.navl{display:none}}
+@media(max-width:600px){.stage{grid-template-columns:minmax(0,1fr)}.cards3,.statg{grid-template-columns:minmax(0,1fr)}.op{grid-template-columns:minmax(0,1fr)}.hero2{min-height:0}.cue{display:none}}
+@media(prefers-reduced-motion:reduce){.hero2 h1 .w,.fadein,[data-rv]{opacity:1;transform:none}body::before{animation:none}}
 </style>
 </head>
 <body>
+<div id="loader" role="status" aria-label="Loading"><svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg0" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3fc6f0"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs><path d="M16 3l10 4v8c0 6.2-4.2 11-10 13-5.8-2-10-6.8-10-13V7z" fill="url(#lg0)"/><path d="M11.5 16.2l3.2 3.2 6-6.2" fill="none" stroke="#04121f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><p>Loading behaviour space…</p></div>
+<div class="prog" id="prog" aria-hidden="true"></div>
 <div class="bar0"><div class="in">
-  <span class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3fc6f0"/><stop offset="1" stop-color="#2b6fd6"/></linearGradient></defs><path d="M16 3l10 4v8c0 6.2-4.2 11-10 13-5.8-2-10-6.8-10-13V7z" fill="url(#lg)"/><path d="M11.5 16.2l3.2 3.2 6-6.2" fill="none" stroke="#04121f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>ContAuth</span>
+  <a class="brand" href="#hero" style="text-decoration:none;color:inherit"><svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3fc6f0"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs><path d="M16 3l10 4v8c0 6.2-4.2 11-10 13-5.8-2-10-6.8-10-13V7z" fill="url(#lg)"/><path d="M11.5 16.2l3.2 3.2 6-6.2" fill="none" stroke="#04121f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>ContAuth</a>
+  <nav class="navl" aria-label="Sections"><a href="#system">System</a><a href="#about">About</a><a href="#features">Features</a><a href="#showcase">Showcase</a><a href="#stats">Results</a><a href="#feedback">Feedback</a><a href="#contact">Contact</a></nav>
   <span class="sp"></span>
   <span class="pill"><span class="dot" id="liveDot"></span><span id="livePill">Not monitoring</span></span>
 </div><div class="scan" aria-hidden="true"><i id="scanBar"></i></div></div>
 
-<header class="hero"><div class="in">
-  <div>
-    <h1>Is it still you? Continuous authentication, live</h1>
-    <p class="lede">Every 5 seconds your typing and mouse rhythm becomes a point in behaviour space. A Zero Trust engine measures how far it lands from your normal pattern and decides: allow, monitor, ask for your password, or end the session.</p>
-    <div class="meter">
-      <div class="ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="#ffffff" stroke-opacity=".1" stroke-width="9"/><circle id="arc" cx="50" cy="50" r="42" fill="none" stroke="var(--org)" stroke-width="9" stroke-linecap="round" stroke-dasharray="0 264"/></svg><b id="riskN">–</b><small>risk / 100</small></div>
-      <div>
-        <span id="tierChip" class="chip NONE">Not signed in</span>
-        <p class="stat" id="actionTxt">Waiting for sign-in.</p>
-        <p class="stat" id="modelTxt">Model: none yet</p>
-        <p class="stat" id="nextTxt"></p>
-      </div>
+<header class="hero2" id="hero"><div class="in">
+  <div class="copy" id="heroCopy">
+    <h1><span class="w" style="--i:0">Is</span> <span class="w" style="--i:1">it</span> <span class="w" style="--i:2">still</span> <span class="w" style="--i:3">you?</span> <span class="w grad" style="--i:4">Continuous</span> <span class="w grad" style="--i:5">authentication,</span> <span class="w" style="--i:6">live.</span></h1>
+    <p class="lede fadein" style="--dl:.9s">Every 5 seconds your typing and mouse rhythm becomes a point in behaviour space. A Zero Trust engine measures how far it lands from your normal pattern, and decides whether the person at the keyboard is still you.</p>
+    <div class="ctas fadein" style="--dl:1.1s"><a href="#system" class="btn cta mag"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Start a monitored session</a><a href="#features" class="btn ghost mag">See how it works<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+    <p class="trust fadein" style="--dl:1.3s"><span>705 real sessions</span><span>21 behavioural features</span><span>Open source</span></p>
+  </div>
+  <div class="stage fadein" id="stage" style="--dl:.6s">
+    <div class="viz" id="viz" aria-label="3D view of behaviour space">
+      <span class="vtag">Behaviour space: 705 real sessions in 3D.</span>
+      <div class="legend"><span><b style="background:#3fc6f0"></b>Dataset sessions</span><span><b style="background:#ff7a1a"></b>Your windows</span><span><b style="background:#fff"></b>Latest, ring = tier</span></div>
     </div>
-    <div class="stepper"><span id="st1"><i>1</i>Sign in</span><span id="st2"><i>2</i>Learn your rhythm</span><span id="st3"><i>3</i>Continuously protected</span></div>
+    <div class="fw w1" data-z="1.4"><div class="fi" style="--dur:7.5s;--ax:5px;--ay:12px;--az:.8deg"><div class="gw">
+      <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Session trust</h4>
+      <div class="meter"><div class="ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="#ffffff" stroke-opacity=".1" stroke-width="9"/><circle id="arc" cx="50" cy="50" r="42" fill="none" stroke="var(--org)" stroke-width="9" stroke-linecap="round" stroke-dasharray="0 264"/></svg><b id="riskN">–</b><small>risk</small></div>
+      <div><span id="tierChip" class="chip NONE">Not signed in</span><p class="stat" id="actionTxt">Waiting for sign-in.</p></div></div>
+      <p class="stat" id="nextTxt"></p></div></div></div>
+    <div class="fw w2" data-z="1"><div class="fi" style="--dur:9s;--ax:-7px;--ay:9px;--az:-.7deg;--dl:-2s"><div class="gw">
+      <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0112 0v5l2 2H4z"/><path d="M10 20a2 2 0 004 0"/></svg>Security notifications</h4><div class="nlist" id="hwNotif"></div></div></div></div>
+    <div class="fw w3" data-z=".7"><div class="fi" style="--dur:8.2s;--ax:8px;--ay:7px;--az:.5deg;--dl:-4s"><div class="gw">
+      <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M7 15l4-5 3 3 5-6"/></svg>Risk · last 20 windows</h4><svg id="hwChart" role="img" aria-label="Recent risk scores"></svg></div></div></div>
+    <div class="fw w4" data-z="1.2"><div class="fi" style="--dur:10s;--ax:-5px;--ay:11px;--az:-.9deg;--dl:-1s"><div class="gw">
+      <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Your profile</h4>
+      <div class="pcard"><div class="av" id="hwAvatar">?</div><div><strong id="hwName">Guest</strong><p class="stat" id="modelTxt" style="margin-top:2px">Model: none yet</p></div></div>
+      <div class="stepper"><span id="st1"><i>1</i>Sign in</span><span id="st2"><i>2</i>Learn your rhythm</span><span id="st3"><i>3</i>Continuously protected</span></div></div></div></div>
+    <div class="fw w5" data-z=".9"><div class="fi" style="--dur:8.8s;--ax:6px;--ay:-9px;--az:.7deg;--dl:-3s"><div class="gw">
+      <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Activity</h4><div class="alist" id="hwAct"></div></div></div></div>
+    <div class="fw w6" data-z="1.6"><div class="fi" style="--dur:11s;--ax:-6px;--ay:8px;--az:-.5deg;--dl:-5s"><div class="gw">
+      <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>Navigate</h4><div class="mnav"><a href="#system">Live system<span>→</span></a><a href="#features">How it works<span>→</span></a><a href="#stats">Results<span>→</span></a><a href="#contact">Contact<span>→</span></a></div></div></div></div>
   </div>
-  <div class="viz" id="viz">
-    <span class="vtag">Behaviour space: the 705 real Capstone B sessions, projected to 3D (60% of the variation).<span class="vx"> Your 5-second windows sit apart from it because dataset rows are whole sessions; far points are pulled to the edge.</span> Drag to rotate.</span>
-    <div class="legend"><span><b style="background:#3fc6f0"></b>Dataset sessions, colour = user</span><span><b style="background:#ff7a1a"></b>Your windows</span><span><b style="background:#fff"></b>Latest window, ring = tier</span></div>
-  </div>
-</div></header>
+</div>
+<a class="cue" href="#system" aria-label="Scroll to the live system"><i></i>Scroll</a>
+</header>
 
-<main class="band"><div class="wrap">
+<main id="main"><section id="system" class="band sec"><div class="wrap">
+  <div class="sh" data-rv><span class="kick">Live system</span><h2 class="big">Sign in and watch it learn you</h2><p>Create an account, type and move as you normally would, and the meter above starts scoring you every 5 seconds. Your profile is built from about a minute of normal use.</p></div>
   <section id="gate" class="card gate rise">
     <div class="lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 018 0v3"/></svg></div>
     <h2 id="gTitle">Connecting…</h2>
@@ -272,32 +413,65 @@ tr.click{cursor:pointer}tr.click:hover td{background:rgb(63 198 240/.07)}
         <div class="scroll" style="max-height:none"><table><thead><tr><th>User</th><th>Status</th><th>Tier</th><th class="num">Risk</th><th>Trend</th><th class="num hide-s">Windows</th><th class="hide-s">Profile</th><th class="hide-s">Last seen</th></tr></thead><tbody id="aSessions"></tbody></table></div>
       </div>
       <div class="card" id="aDetail" hidden></div>
+      <div class="card" id="aMsgs"><h2>Messages</h2><div id="aMsgList"><p class="note">No messages yet.</p></div></div>
       <div class="card"><h2>Security event log</h2>
         <div class="row" style="margin-top:0" id="sevFilter"><button class="alt" data-s="">All</button><button class="alt" data-s="critical">Critical</button><button class="alt" data-s="warning">Warning</button><button class="alt" data-s="info">Info</button></div>
         <div class="scroll" style="margin-top:10px"><table><thead><tr><th>Time</th><th>User</th><th>Event</th><th class="hide-s">Detail</th></tr></thead><tbody id="aEvents"></tbody></table></div>
       </div>
     </div>
   </section>
-</div></main>
-
-<section class="band foot"><div class="wrap">
-  <h2>What happens behind the meter</h2>
-  <div class="steps">
-    <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg><h3>Capture</h3><p>Only timings and pointer coordinates: never which key you press or what you type.</p></div>
-    <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M7 15l4-5 3 3 5-6"/></svg><h3>Features</h3><p>21 features per window: typing rhythm, pointer speed, clicks, scrolling, pauses, pointer-path regularity.</p></div>
-    <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg><h3>Models</h3><p>Cold start uses the population model trained on 705 real sessions. After 12 clean windows a personal Isolation Forest takes over, with your own calibrated threshold.</p></div>
-    <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg><h3>Zero Trust</h3><p>Behaviour alone can force a password re-check, never a termination. Cookie theft and bots end the session and lock the account for 15 minutes.</p></div>
-  </div>
-  <h2 style="margin-top:36px">How the full system measured on real data</h2>
-  <p style="max-width:70ch;margin-top:0">Per-user verification on the Capstone B dataset (705 real sessions, 10 users), tested on impostors never seen in training:</p>
-  <div class="scroll" style="max-height:none"><table style="max-width:640px"><thead><tr><th>Setting</th><th class="num">ROC-AUC</th><th class="num">False accepts</th><th class="num">False rejects</th></tr></thead><tbody>
-    <tr><td>Original model (14 features)</td><td class="num">0.767</td><td class="num">–</td><td class="num">–</td></tr>
-    <tr><td>Improved model, target 5% false accepts</td><td class="num">0.800</td><td class="num">5.1%</td><td class="num">60.3%</td></tr>
-    <tr><td>Improved model, target 10% (default)</td><td class="num">0.800</td><td class="num">9.2%</td><td class="num">48.2%</td></tr>
-    <tr><td>Improved model, target 20%</td><td class="num">0.800</td><td class="num">18.5%</td><td class="num">35.5%</td></tr>
-  </tbody></table></div>
-  <p class="note" style="max-width:80ch">The population model here is the server's trained model, exported exactly (scores match Python to 6 decimals). Personal profiles use an Isolation Forest; the server additionally uses a One-Class SVM and, once several users are enrolled, a supervised ExtraTrees + logistic-regression model. Enforcement runs in each visitor's browser, so a determined user could bypass it; the server version enforces it server-side. Source: <a href="https://github.com/adatta002-meow/contauth">github.com/adatta002-meow/contauth</a></p>
 </div></section>
+<section id="about" class="band sec"><div class="wrap">
+  <div class="sh" data-rv><span class="kick">About</span><h2 class="big">A session should stay yours after you log in</h2><p>ContAuth is an East West University CSE400B capstone: continuous authentication for web sessions using behavioural biometrics and Zero Trust controls.</p></div>
+  <div class="cards3"><article class="c3 tilt" data-rv style="--d:0s"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.5A9 9 0 1111.5 3a3 3 0 003.5 3.5 3 3 0 003.5 3.5 3 3 0 002.5 2.5z"/><path d="M8 11h.01M12 15h.01M8.5 16h.01M15 11.5h.01"/></svg></div><span class="n">The gap</span><h3>Login is checked once</h3><p>Most web apps trust a session until it expires. A stolen cookie or an unlocked laptop keeps that trust.</p></article><article class="c3 tilt" data-rv style="--d:0.1s"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg></div><span class="n">The idea</span><h3>Keep checking, quietly</h3><p>Everyone types and moves a mouse a little differently. Measuring that rhythm continuously costs the user nothing.</p></article><article class="c3 tilt" data-rv style="--d:0.2s"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 018 0v3"/></svg></div><span class="n">The response</span><h3>Trust is earned, not granted</h3><p>When behaviour drifts, the system asks for your password; when the evidence is certain, it ends the session.</p></article></div>
+</div></section>
+<section id="features" class="band sec"><div class="wrap">
+  <div class="sh" data-rv><span class="kick">Features</span><h2 class="big">How it works, layer by layer</h2><p>The same pipeline runs in the Flask server and in this page. Hover a card to tilt it.</p></div>
+  <div class="cards3"><article class="c3 tilt" data-rv style="--d:0s"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg></div><span class="n">01</span><h3>Behaviour capture</h3><p>Only timings and pointer coordinates are recorded: never which key you press, never what you type.</p></article><article class="c3 tilt" data-rv style="--d:0.08s"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M7 15l4-5 3 3 5-6"/></svg></div><span class="n">02</span><h3>21 behavioural features</h3><p>Typing rhythm, pointer speed and travel, clicks, scrolling, idle pauses and pointer-path regularity, every 5 seconds.</p></article><article class="c3 tilt" data-rv style="--d:0.16s"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg></div><span class="n">03</span><h3>Trained and personal models</h3><p>Cold start uses the population model trained on 705 real sessions. After 12 clean windows, a personal Isolation Forest takes over.</p></article><article class="c3 tilt" data-rv style="--d:0s"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg></div><span class="n">04</span><h3>Zero Trust engine</h3><p>Risk = 0.70·B + 0.10·C + 0.10·D + 0.10·S. Low allows, medium monitors, high asks for your password, critical ends the session.</p></article><article class="c3 tilt" data-rv style="--d:0.08s"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 4v4M9 13h.01M15 13h.01M9.5 16.5h5"/></svg></div><span class="n">05</span><h3>Attack detection</h3><p>Stolen cookies, scripted bots, new networks and new devices are caught by deterministic rules that act at once.</p></article><article class="c3 tilt" data-rv style="--d:0.16s"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></div><span class="n">06</span><h3>Admin console</h3><p>Every session live, per-window risk breakdowns, a filterable security log, and remote terminate, lock, unlock and reset.</p></article></div>
+</div></section>
+<section id="showcase" class="band sec"><div class="wrap">
+  <div class="sh" data-rv><span class="kick">Showcase</span><h2 class="big">Everything that was built</h2><p>Four parts of one project, each open to inspect.</p></div>
+  <div class="show"><a class="sc" href="#system" data-rv style="--d:0s"><div class="pv"><div class="mock"><div style="color:#7fe0ff">● Monitoring · low risk</div><div class="bars2"><i style="height:30%"></i><i style="height:42%"></i><i style="height:35%"></i><i style="height:58%"></i><i style="height:40%"></i><i style="height:28%"></i><i style="height:36%"></i><i style="height:24%"></i><i style="height:20%"></i><i style="height:26%"></i></div></div></div><div class="bd"><h3>Live web system</h3><p>This page: accounts, live scoring, attacks and the admin console.</p><span class="go">Open the system<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div></a><a class="sc" href="https://github.com/adatta002-meow/contauth" target="_blank" rel="noopener" data-rv style="--d:0.08s"><div class="pv"><div class="mock">$ git clone contauth<br><span style="color:#a5b4fc">contauth/</span> features.py · policy.py<div class="ln" style="width:80%"></div><div class="ln" style="width:55%"></div><div class="ln" style="width:68%"></div></div></div><div class="bd"><h3>Source code</h3><p>The full project on GitHub: Flask server, ML pipeline, tests and this website.</p><span class="go">View on GitHub<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div></a><a class="sc" href="https://github.com/adatta002-meow/contauth/blob/main/DEPLOY.md" target="_blank" rel="noopener" data-rv style="--d:0.16s"><div class="pv"><div class="mock">FROM python:3.13-slim<br>RUN python -m contauth.ml.train<br><span style="color:#33d17f">25 passed</span><div class="ln" style="width:60%"></div><div class="ln" style="width:40%"></div></div></div><div class="bd"><h3>Server deployment</h3><p>Docker image that retrains the model and refuses to ship unless all 25 tests pass.</p><span class="go">Read the guide<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div></a><a class="sc" href="https://github.com/adatta002-meow/contauth/blob/main/reports/tuning.md" target="_blank" rel="noopener" data-rv style="--d:0.24s"><div class="pv"><div class="mock">ROC-AUC 0.767 → <span style="color:#33d17f">0.800</span><div class="bars2"><i style="height:77%;background:linear-gradient(180deg,#a78bfa,#6d7cff)"></i><i style="height:80%;background:linear-gradient(180deg,#a78bfa,#6d7cff)"></i><i style="height:76%;background:linear-gradient(180deg,#a78bfa,#6d7cff)"></i><i style="height:60%;background:linear-gradient(180deg,#a78bfa,#6d7cff)"></i><i style="height:48%;background:linear-gradient(180deg,#a78bfa,#6d7cff)"></i><i style="height:36%;background:linear-gradient(180deg,#a78bfa,#6d7cff)"></i></div></div></div><div class="bd"><h3>Model benchmark</h3><p>Nested model selection and calibrated thresholds, measured on unseen impostors.</p><span class="go">See the report<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div></a></div>
+</div></section>
+<section id="stats" class="band sec"><div class="wrap">
+  <div class="sh" data-rv><span class="kick">Results</span><h2 class="big">Measured on real data, reported honestly</h2><p>Per-user verification on the Capstone B dataset (10 users), tested on impostors the model never saw in training.</p></div>
+  <div class="statg"><div class="st" data-rv style="--d:0s"><b class="count" data-to="705" data-dec="0" data-suf="">0</b><span>real sessions in the training dataset</span></div><div class="st" data-rv style="--d:0.06s"><b class="count" data-to="21" data-dec="0" data-suf="">0</b><span>behavioural features per window</span></div><div class="st" data-rv style="--d:0.12s"><b class="count" data-to="0.8" data-dec="3" data-suf="">0</b><span>ROC-AUC on impostors never seen in training</span></div><div class="st" data-rv style="--d:0s"><b class="count" data-to="9.2" data-dec="1" data-suf="%">0</b><span>false accepts at the default setting</span></div><div class="st" data-rv style="--d:0.06s"><b class="count" data-to="25" data-dec="0" data-suf="">0</b><span>automated tests gate every server build</span></div><div class="st" data-rv style="--d:0.12s"><b class="count" data-to="5" data-dec="0" data-suf="s">0</b><span>between continuous checks</span></div></div>
+  <div class="card" data-rv style="margin-top:18px">
+    <h3 style="margin-bottom:6px">The false-accept / false-reject trade-off</h3>
+    <p class="hint" style="margin:0 0 14px">Each user's threshold is calibrated to a target false-accept rate. <span style="color:var(--org);font-weight:600">Orange</span>: impostors accepted. <span style="color:var(--vi);font-weight:600">Violet</span>: genuine sessions flagged.</p>
+    <div class="opg" id="opg"><div class="op"><span>Target 1%</span><div class="tr"><div><i class="fa" data-w="1.6"></i><span class="num">1.6%</span></div><div><i class="fr" data-w="76.2"></i><span class="num">76.2%</span></div></div></div><div class="op"><span>Target 5%</span><div class="tr"><div><i class="fa" data-w="5.1"></i><span class="num">5.1%</span></div><div><i class="fr" data-w="60.3"></i><span class="num">60.3%</span></div></div></div><div class="op"><span>Target 10% (default)</span><div class="tr"><div><i class="fa" data-w="9.2"></i><span class="num">9.2%</span></div><div><i class="fr" data-w="48.2"></i><span class="num">48.2%</span></div></div></div><div class="op"><span>Target 20%</span><div class="tr"><div><i class="fa" data-w="18.5"></i><span class="num">18.5%</span></div><div><i class="fr" data-w="35.5"></i><span class="num">35.5%</span></div></div></div></div>
+    <p class="note" style="margin-top:14px">False rejects are per session. In the live system a false reject costs one password re-check, never a lockout. Original 14-feature model: ROC-AUC 0.767; improved 21-feature model: 0.800.</p>
+  </div>
+</div></section>
+<section id="feedback" class="band sec"><div class="wrap">
+  <div class="sh" data-rv><span class="kick">Feedback</span><h2 class="big">From people who tried it</h2><p>Real comments from visitors who ran a session. Nothing here is written by us.</p></div>
+  <div class="fbw" id="fbWall"></div>
+  <div class="card" data-rv style="margin-top:18px;max-width:640px">
+    <h3 style="margin-bottom:6px">Add your feedback</h3>
+    <form id="fbForm"><div class="field"><textarea id="fbText" placeholder=" " maxlength="400" required style="min-height:110px"></textarea><label for="fbText">What did you think?</label></div>
+    <div class="field"><input id="fbRole" placeholder=" " maxlength="60"><label for="fbRole">Your role (optional), e.g. CSE student</label></div>
+    <p class="err" id="fbErr"></p><div class="row"><button type="submit" class="mag">Post feedback</button><button type="button" class="alt" id="fbDel" hidden>Remove mine</button></div></form>
+  </div>
+</div></section>
+<section id="contact" class="band sec"><div class="wrap contact">
+  <div data-rv><span class="kick">Contact</span><h2 class="big">Questions, bugs or collaboration</h2><p class="hint" style="font-size:17px">Messages go straight to the project owner's admin console. For code issues you can also open an issue on <a href="https://github.com/adatta002-meow/contauth/issues" target="_blank" rel="noopener">GitHub</a>.</p></div>
+  <form class="card" id="ctForm" data-rv style="--d:.1s">
+    <div class="field"><select id="ctTopic"><option>Question</option><option>Bug report</option><option>Collaboration</option><option>Other</option></select><label for="ctTopic">Topic</label></div>
+    <div class="field"><input id="ctEmail" type="email" placeholder=" " maxlength="120"><label for="ctEmail">Reply-to email (optional)</label></div>
+    <div class="field"><textarea id="ctMsg" placeholder=" " required maxlength="2000" style="min-height:140px"></textarea><label for="ctMsg">Message</label></div>
+    <p class="err" id="ctErr"></p><p class="ok" id="ctOk"></p>
+    <button type="submit" class="btn cta mag" style="border:0">Send message<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+  </form>
+</div></section>
+</main>
+<footer class="ft band"><div class="wrap ftg">
+  <div><a class="brand soc" href="#hero" style="color:var(--ink);font:600 19px Outfit"><svg style="width:26px;height:26px" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3fc6f0"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs><path d="M16 3l10 4v8c0 6.2-4.2 11-10 13-5.8-2-10-6.8-10-13V7z" fill="url(#lg2)"/><path d="M11.5 16.2l3.2 3.2 6-6.2" fill="none" stroke="#04121f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>ContAuth</a>
+    <p class="hint" style="max-width:44ch">Continuous Authentication for Web Sessions Using Behavioral Biometrics and Zero Trust Controls. EWU CSE400B capstone.</p></div>
+  <div><h4>Explore</h4><a href="#system">Live system</a><br><a href="#features">Features</a><br><a href="#stats">Results</a><br><a href="#contact">Contact</a></div>
+  <div><h4>Project</h4><a class="soc" href="https://github.com/adatta002-meow/contauth" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 00-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.2-3.4-1.2-.4-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.6 1 1.6 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.2-.3-4.6-1.1-4.6-5a3.9 3.9 0 011-2.7c-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.6 9.6 0 015 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7a3.9 3.9 0 011 2.7c0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0012 2z"/></svg>GitHub</a><br><a href="https://github.com/adatta002-meow/contauth/blob/main/DATA_PROVENANCE.md" target="_blank" rel="noopener">Data provenance</a><br><a href="#hero">Back to top ↑</a></div>
+</div></footer>
+
+
 
 <div id="botdot"></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
@@ -606,6 +780,8 @@ function initViz(data){
   data.pts.forEach((q,i)=>{pos.set([q[0],q[1],q[2]],i*3);const c=q[3]>=0?pal[q[3]%pal.length]:other;colr.set([c.r,c.g,c.b],i*3)});
   const g1=new T.BufferGeometry();g1.setAttribute("position",new T.BufferAttribute(pos,3));g1.setAttribute("color",new T.BufferAttribute(colr,3));
   G.add(new T.Points(g1,new T.PointsMaterial({size:.62,map:tex,vertexColors:true,transparent:true,depthWrite:false,blending:T.AdditiveBlending,opacity:.9})));
+  const AN=innerWidth<700?220:520,apos=new Float32Array(AN*3);for(let i=0;i<AN;i++)apos.set([(Math.random()-.5)*90,(Math.random()-.5)*60,-20-Math.random()*50],i*3);
+  const ga=new T.BufferGeometry();ga.setAttribute("position",new T.BufferAttribute(apos,3));const amb=new T.Points(ga,new T.PointsMaterial({size:.35,map:tex,color:0x8b7cf6,transparent:true,opacity:.45,depthWrite:false,blending:T.AdditiveBlending}));scene.add(amb);
   const grid=new T.GridHelper(30,15,0x1f4870,0x112a45);grid.position.y=-11;grid.material.transparent=true;grid.material.opacity=.55;G.add(grid);
   const MAXU=240,upos=new Float32Array(MAXU*3),g2=new T.BufferGeometry();g2.setAttribute("position",new T.BufferAttribute(upos,3));g2.setDrawRange(0,0);
   G.add(new T.Points(g2,new T.PointsMaterial({size:.9,map:tex,color:0xff7a1a,transparent:true,depthWrite:false,blending:T.AdditiveBlending})));
@@ -622,7 +798,8 @@ function initViz(data){
   (function loop(now){const dt=Math.min(now-last,60);last=now;if(!drag)ry+=vy*dt/16;G.rotation.set(rx,ry,0);
     for(let i=rings.length-1;i>=0;i--){const r=rings[i];r.t+=dt;const k=r.t/1300;r.m.scale.setScalar(1+k*7);r.m.material.opacity=Math.max(0,.85*(1-k));r.m.quaternion.copy(cam.quaternion);if(k>=1){G.remove(r.m);r.m.geometry.dispose();r.m.material.dispose();rings.splice(i,1)}}
     if(cur.visible&&!RM){const s=1+.12*Math.sin(now/300);glow.scale.set(3.4*s,3.4*s,1)}
-    R.render(scene,cam);requestAnimationFrame(loop)})(last);
+    if(!RM){cam.position.x+=(MX*3-cam.position.x)*.04;cam.position.y+=(7-MY*2.5-cam.position.y)*.04;amb.rotation.z+=dt*.00002}cam.lookAt(0,0,0);
+    if(heroVisible)R.render(scene,cam);requestAnimationFrame(loop)})(last);
   V.ok=true;V.T=T;V.G=G;V.upos=upos;V.g2=g2;V.n=0;V.cur=cur;V.glow=glow;V.rings=rings;V.trail=trail;V.hist=[];V.cam=cam;
 }
 function project(f){const D=V.data,P=POP;if(!D||!P)return null;
@@ -647,6 +824,75 @@ function toast(kind,sev,detail){const m=TOAST[kind];if(!m)return;const box=$("to
   setTimeout(()=>{el.classList.add("out");setTimeout(()=>el.remove(),450)},4800)}
 let lastWinCount=0;
 
+/* ---------- hero windows (live data) ---------- */
+let MX=0,MY=0,heroVisible=true;
+function renderHero(){
+  const ev=S.evs.slice(0,3);
+  $("hwNotif").innerHTML=ev.length?ev.map(e=>`<div><i class="${esc(e.sev)}"></i><span>${esc(e.kind.replace(/_/g," "))}<small>${esc(e.detail)}</small></span></div>`).join(""):
+    `<div><i></i><span>Waiting for your first session<small>Events stream here as they happen</small></span></div><div><i></i><span>Trained on 705 real sessions<small>Population model, exported from the server</small></span></div>`;
+  const svg=$("hwChart"),w=svg.clientWidth||200,h=svg.clientHeight||78,v=S.wins.slice(-20).map(x=>x.risk);
+  if(v.length>1){const n=v.length-1,X=i=>i/n*w,Y=r=>h-4-(r/100)*(h-8),pts=v.map((r,i)=>`${X(i).toFixed(1)},${Y(r).toFixed(1)}`).join(" ");
+    svg.innerHTML=`<defs><linearGradient id="hg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3fc6f0" stop-opacity=".45"/><stop offset="1" stop-color="#3fc6f0" stop-opacity="0"/></linearGradient></defs><line x1="0" x2="${w}" y1="${Y(60)}" y2="${Y(60)}" stroke="#ff8a3d" stroke-opacity=".5" stroke-dasharray="3 3"/><polygon fill="url(#hg)" points="0,${h} ${pts} ${w},${h}"/><polyline fill="none" stroke="#7fe0ff" stroke-width="2" points="${pts}"/><circle cx="${X(n)}" cy="${Y(v[n])}" r="3.5" fill="#fff"/>`}
+  else svg.innerHTML=`<text x="${w/2}" y="${h/2+4}" text-anchor="middle" font-size="12" fill="#7f93ab">Sign in to stream live risk</text>`;
+  const nmv=S.on?(names[uid]||(mode==="shared"?"You":"Guest")):"Guest";$("hwName").textContent=nmv;$("hwAvatar").textContent=(nmv[0]||"?").toUpperCase();
+  const a=S.wins.slice(-4).reverse();
+  $("hwAct").innerHTML=a.length?a.map(x=>`<div><span class="num" style="text-align:left;color:#7f93ab">#${x.i}</span><span>${esc(x.model)}</span><span class="chip ${x.tier}">${Math.round(x.risk)}</span></div>`).join(""):`<div><span></span><span style="color:#7f93ab">No windows scored yet</span><span></span></div>`}
+
+/* ---------- motion system ---------- */
+const fine=matchMedia("(pointer:fine)").matches,big=()=>innerWidth>1180;
+function initMotion(){
+  setTimeout(()=>$("loader").classList.add("done"),RM?0:900);
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target);if(e.target.querySelector(".count"))e.target.querySelectorAll(".count").forEach(countUp);if(e.target.id==="opg"||e.target.querySelector("#opg"))growBars()}}),{threshold:.18});
+  document.querySelectorAll("[data-rv]").forEach(el=>io.observe(el));document.querySelectorAll(".st").forEach(el=>io.observe(el));
+  new IntersectionObserver(es=>{heroVisible=es[0].isIntersecting},{threshold:0}).observe($("hero"));
+  const links=[...document.querySelectorAll(".navl a")],secs=links.map(a=>document.querySelector(a.getAttribute("href")));
+  let ticking=false;
+  addEventListener("scroll",()=>{if(ticking)return;ticking=true;requestAnimationFrame(()=>{ticking=false;const y=scrollY,H=document.documentElement.scrollHeight-innerHeight;
+    $("prog").style.width=(H>0?y/H*100:0)+"%";
+    if(!RM&&y<innerHeight){$("heroCopy").style.transform=`translate3d(0,${y*.18}px,0)`;$("stage").style.transform=`translate3d(0,${y*.07}px,0)`}
+    let cur=-1;secs.forEach((s,i)=>{if(s&&s.getBoundingClientRect().top<innerHeight*.35)cur=i});links.forEach((l,i)=>l.classList.toggle("on",i===cur))})},{passive:true});
+  const fws=[...document.querySelectorAll(".fw")],st=fws.map(()=>({x:0,y:0,rx:0,ry:0,s:1,h:false,tx:0,ty:0}));
+  if(fine&&!RM){
+    $("hero").addEventListener("pointermove",e=>{MX=e.clientX/innerWidth*2-1;MY=e.clientY/innerHeight*2-1});
+    fws.forEach((f,i)=>{f.addEventListener("pointerenter",()=>{st[i].h=true;f.classList.add("hov")});f.addEventListener("pointerleave",()=>{st[i].h=false;st[i].tx=st[i].ty=0;f.classList.remove("hov")});
+      f.addEventListener("pointermove",e=>{const r=f.getBoundingClientRect();st[i].tx=((e.clientY-r.top)/r.height-.5)*-12;st[i].ty=((e.clientX-r.left)/r.width-.5)*14})});
+    (function fl(){if(big()&&heroVisible)fws.forEach((f,i)=>{const z=+f.dataset.z||1,s=st[i];
+      s.x+=(MX*-16*z-s.x)*.08;s.y+=(MY*-12*z-s.y)*.08;s.rx+=(s.tx-s.rx)*.12;s.ry+=(s.ty-s.ry)*.12;s.s+=((s.h?1.05:1)-s.s)*.12;
+      f.style.transform=`translate3d(${s.x.toFixed(2)}px,${s.y.toFixed(2)}px,${s.h?40:0}px) rotateX(${(s.rx+MY*-4*z).toFixed(2)}deg) rotateY(${(s.ry+MX*6*z).toFixed(2)}deg) scale(${s.s.toFixed(3)})`});
+      requestAnimationFrame(fl)})();
+    document.querySelectorAll(".mag").forEach(b=>{b.addEventListener("pointermove",e=>{const r=b.getBoundingClientRect();b.style.transform=`translate(${(e.clientX-r.left-r.width/2)*.25}px,${(e.clientY-r.top-r.height/2)*.35}px)`});b.addEventListener("pointerleave",()=>{b.style.transform=""})});
+    document.querySelectorAll(".tilt").forEach(c=>{c.addEventListener("pointermove",e=>{const r=c.getBoundingClientRect(),x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;
+      c.style.transform=`perspective(900px) rotateX(${(.5-y)*9}deg) rotateY(${(x-.5)*11}deg) translateZ(6px)`;c.style.setProperty("--px",x*100+"%");c.style.setProperty("--py",y*100+"%")});c.addEventListener("pointerleave",()=>{c.style.transform=""})});
+  }
+}
+function countUp(el){const to=+el.dataset.to,dec=+el.dataset.dec||0,suf=el.dataset.suf||"",t0=performance.now(),dur=RM?0:1600;
+  const f=now=>{const k=dur?Math.min(1,(now-t0)/dur):1,e=1-(1-k)**4;el.textContent=(to*e).toFixed(dec)+suf;if(k<1)requestAnimationFrame(f)};requestAnimationFrame(f)}
+function growBars(){document.querySelectorAll("#opg i[data-w]").forEach((b,i)=>setTimeout(()=>{b.style.width=b.dataset.w+"%"},RM?0:i*90))}
+
+/* ---------- feedback wall + contact (shared storage) ---------- */
+let fbRows=[],fbUnsub=null,msgRows=[],msgUnsub=null;
+function initSocial(){
+  if(!(db&&uid)){$("fbWall").innerHTML=`<p class="note">Feedback appears here when this page is opened with shared storage (signed in to claude.ai).</p>`;$("fbForm").querySelector("button").disabled=true;$("ctForm").querySelector("button").disabled=true;
+    $("ctErr").textContent="Messages need shared storage in this view. You can open an issue on GitHub instead.";return}
+  if(!fbUnsub)fbUnsub=db.collection("feedback").onSnapshot(s=>{fbRows=s.docs.map(d=>Object.assign({id:d.id},d.data())).filter(r=>r.text).sort((a,b)=>b.t-a.t);fbNames();renderFb()},()=>{});
+  if(isAdmin&&!msgUnsub)msgUnsub=db.collection("messages").onSnapshot(s=>{msgRows=s.docs.map(d=>Object.assign({id:d.id},d.data()));fbNames();renderMsgs()},()=>{});
+  if(user&&user.profiles)user.profiles([uid]).then(ps=>{names[uid]=(ps&&ps[uid]&&ps[uid].name)||names[uid]||"";render()}).catch(()=>{})}
+async function fbNames(){if(!user||!user.profiles)return;const ids=[...fbRows,...msgRows].map(r=>r.id).filter(i=>!(i in names));if(!ids.length)return;ids.forEach(i=>names[i]="");
+  try{const ps=await user.profiles(ids);ids.forEach(i=>{names[i]=(ps&&ps[i]&&ps[i].name)||""});renderFb();renderMsgs()}catch(e){}}
+function renderFb(){const mine=fbRows.find(r=>r.id===uid);$("fbDel").hidden=!mine;
+  $("fbWall").innerHTML=fbRows.length?fbRows.map(r=>{const n=r.id===uid?"You":names[r.id]||"A visitor";return`<figure class="fb" style="margin:0"><q>${esc(r.text)}</q><figcaption class="by"><span class="av">${esc((n[0]||"?").toUpperCase())}</span><span><strong style="color:var(--ink)">${esc(n)}</strong>${r.role?` · ${esc(r.role)}`:""}<br>${new Date(r.t).toLocaleDateString()}</span>${isAdmin&&r.id!==uid?`<button class="alt" data-del="${esc(r.id)}" style="margin-left:auto;min-height:34px;padding:0 10px">Remove</button>`:""}</figcaption></figure>`}).join(""):
+    `<div class="fb"><q>No feedback yet.</q><div class="by">Try a session above, then be the first to leave a comment.</div></div>`}
+$("fbWall").addEventListener("click",e=>{const b=e.target.closest("[data-del]");if(b)write(()=>db.doc("feedback/"+b.dataset.del).delete())});
+$("fbForm").addEventListener("submit",e=>{e.preventDefault();const tx=$("fbText").value.trim();if(tx.length<3){$("fbErr").textContent="Write at least a few words.";return}
+  $("fbErr").textContent="";const o={text:tx,role:$("fbRole").value.trim(),t:Date.now()};write(()=>db.doc("feedback/"+uid).set(o).catch(err=>{$("fbErr").textContent="Couldn't post. You may need Contributor access to this page."}));$("fbText").value="";$("fbRole").value=""});
+$("fbDel").addEventListener("click",()=>write(()=>db.doc("feedback/"+uid).delete()));
+$("ctForm").addEventListener("submit",async e=>{e.preventDefault();$("ctErr").textContent="";$("ctOk").textContent="";const m=$("ctMsg").value.trim();if(m.length<5){$("ctErr").textContent="Please write a little more.";return}
+  try{const ref=db.doc("messages/"+uid),cur=await ref.get(),items=((cur.exists&&cur.data().items)||[]).slice(-19);items.push({topic:$("ctTopic").value,email:$("ctEmail").value.trim(),msg:m,t:Date.now()});
+    await ref.set({items,last:Date.now()});$("ctMsg").value="";$("ctEmail").value="";$("ctOk").textContent="Sent. The project owner will see it in the admin console."}
+  catch(err){$("ctErr").textContent="Couldn't send. You may need Contributor access to this page, or open a GitHub issue."}});
+function renderMsgs(){const all=[];msgRows.forEach(r=>(r.items||[]).forEach(it=>all.push(Object.assign({u:r.id},it))));all.sort((a,b)=>b.t-a.t);
+  $("aMsgList").innerHTML=all.length?`<div class="scroll"><table><thead><tr><th>When</th><th>From</th><th>Topic</th><th>Message</th></tr></thead><tbody>${all.slice(0,100).map(m=>`<tr><td class="num">${new Date(m.t).toLocaleString()}</td><td>${esc(m.u===uid?"You":names[m.u]||"A visitor")}${m.email?`<div class="note">${esc(m.email)}</div>`:""}</td><td>${esc(m.topic)}</td><td style="white-space:pre-wrap">${esc(m.msg)}</td></tr>`).join("")}</tbody></table></div>`:`<p class="note">No messages yet.</p>`}
+
 /* ---------- render ---------- */
 const col={LOW:"var(--low)",MEDIUM:"var(--med)",HIGH:"var(--high)",CRITICAL:"var(--crit)"};
 function render(){
@@ -666,7 +912,7 @@ function render(){
   $("bars").innerHTML=[["Behaviour B",b.B,.7],["Context C",b.C,.1],["Device D",b.D,.1],["Session S",b.S,.1]].map(([n,v,w])=>`<div class="bar"><span>${n} <span class="note">×${w}</span></span><div class="track"><i style="width:${v}%"></i></div><span class="num">${Math.round(v)}</span></div>`).join("");
   const fl=S.wins.length>lastWinCount;lastWinCount=S.wins.length;$("wins").innerHTML=S.wins.length?S.wins.slice().reverse().map((w,ix)=>`<tr${ix===0&&fl?' class="new"':''}><td class="num">${w.i}</td><td>${esc(w.model)}</td><td class="num">${w.ev}</td><td class="num">${w.B}</td><td class="num">${w.risk}</td><td><span class="chip ${w.tier}">${w.tier}</span> ${w.action.replace("_"," ")}</td><td class="hide-s note">${esc(w.why)}</td></tr>`).join(""):`<tr><td colspan="7" class="note">The first window is scored 5 seconds after sign-in.</td></tr>`;
   $("events").innerHTML=S.evs.length?S.evs.slice(0,30).map(e=>`<div class="ev"><span class="t">${fmtT(e.t)}</span><span><span class="sev-${e.sev}">${esc(e.kind.replace(/_/g," "))}</span> · ${esc(e.detail)}</span></div>`).join(""):`<p class="note">No events yet.</p>`;
-  draw($("chart"),S.wins)}
+  draw($("chart"),S.wins);renderHero()}
 function draw(svg,wins){if(!svg)return;const Wd=svg.clientWidth,H=svg.clientHeight;if(!Wd||!H)return;const L=Wd<520?6:30,P=8,y=v=>P+(1-v/100)*(H-2*P);
   let o=[[0,30,"var(--low)"],[30,60,"var(--med)"],[60,80,"var(--high)"],[80,100,"var(--crit)"]].map(([a,b,c])=>`<rect x="${L}" width="${Wd-L}" y="${y(b)}" height="${y(a)-y(b)}" fill="${c}" opacity=".1"/>`).join("");
   if(Wd>=520)o+=[0,30,60,80,100].map(v=>`<text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--mut)">${v}</text>`).join("");
@@ -678,7 +924,7 @@ function draw(svg,wins){if(!svg)return;const Wd=svg.clientWidth,H=svg.clientHeig
   svg.innerHTML=o}
 new ResizeObserver(()=>{draw($("chart"),S.wins);const r=adminRows.find(x=>x.id===adminSel);if(r)draw($("dChart"),r.windows)}).observe(document.body);
 setInterval(()=>{if(S.tab==="admin")renderAdmin()},10000);
-render();boot();
+initMotion();render();boot().then(initSocial);
 }
 </script>
 </body>

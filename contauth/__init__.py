@@ -1,4 +1,9 @@
 """Continuous Authentication for Web Sessions using Behavioral Biometrics and Zero Trust Controls."""
+# Flask and the server-only modules are imported lazily inside create_app so that
+# `import contauth` (used by the desktop agent and the ML pipeline) does not require
+# Flask. The web server behaves exactly as before — create_app() still builds it.
+from __future__ import annotations
+
 import hashlib
 import hmac
 import json
@@ -6,15 +11,7 @@ import secrets
 import time
 from functools import wraps
 
-import click
-from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, session, url_for
-from werkzeug.security import check_password_hash, generate_password_hash
-
-from contauth import profiles
 from contauth.config import Config
-from contauth.db import close_db, get_db, init_db, log_event
-from contauth.features import extract_window_features
-from contauth.policy import Signals, evaluate
 
 SENSITIVE_PATHS = ("/app/settings", "/admin")
 MAX_EVENTS_PER_BATCH = 20000
@@ -23,6 +20,8 @@ MAX_EVENTS_PER_BATCH = 20000
 def _bootstrap_admin(app):
     """Create the admin from CA_ADMIN_USER / CA_ADMIN_PASSWORD if it doesn't exist.
     Hosts without shell access (e.g. Render's free tier) can't run `flask create-admin`."""
+    from contauth.db import get_db
+    from werkzeug.security import generate_password_hash
     user, pw = app.config.get("ADMIN_USER"), app.config.get("ADMIN_PASSWORD")
     if not user or not pw:
         return
@@ -33,7 +32,17 @@ def _bootstrap_admin(app):
         db.commit()
 
 
-def create_app(overrides: dict | None = None) -> Flask:
+def create_app(overrides: dict | None = None) -> "Flask":
+    import click
+    from flask import (Flask, abort, flash, g, jsonify, redirect, render_template,
+                       request, session, url_for)
+    from werkzeug.security import check_password_hash, generate_password_hash
+
+    from contauth import profiles
+    from contauth.db import close_db, get_db, init_db, log_event
+    from contauth.features import extract_window_features
+    from contauth.policy import Signals, evaluate
+
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(Config)
     if overrides:

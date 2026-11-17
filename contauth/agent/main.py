@@ -1,30 +1,57 @@
 """ContAuth desktop agent — continuous authentication for the whole machine.
 
 Usage:
-    python -m contauth.agent                 # run the agent (needs a display + input access)
-    python -m contauth.agent --window-ms 5000
-    python -m contauth.agent --face          # add a consented camera presence check
-    python -m contauth.agent --dry-run       # never actually lock; log the lock instead
-    python -m contauth.agent --simulate      # demo without global hooks: synthetic activity
-    python -m contauth.agent --headless --simulate   # no window (CI / servers)
+    python -m contauth.agent                       # run the agent (status window opens)
+    python -m contauth.agent --config my.json      # load settings from a JSON file
+    python -m contauth.agent --monitor-only        # never lock; just observe + log
+    python -m contauth.agent --dry-run             # log the lock instead of locking
+    python -m contauth.agent --face                # consented camera presence check
+    python -m contauth.agent --simulate            # demo without global hooks
+    python -m contauth.agent --headless --simulate # no window (CI / servers)
 
 The agent watches your typing and mouse rhythm across the desktop, scores it every
 few seconds with the model trained on 705 real sessions, and locks the screen when
 the behaviour stops matching your enrolled profile — the OS login then re-verifies
 you. It stores only aggregated features (never keystrokes or text) in a local file,
 and the status window lets you pause or quit at any time.
+
+Daily-use safety (so it does not lock you out by surprise):
+  * a warm-up grace period after launch (behaviour-only step-ups just warn),
+  * a cooldown so it will not re-lock while you are signing back in,
+  * --monitor-only to live with it for a few days before it enforces.
 """
 from __future__ import annotations
 
 import argparse
-import math
+import json
 import os
 import random
+import sys
 import time
 
 from contauth.agent.controller import Controller
 from contauth.agent.engine import CFG, AuthEngine
 from contauth.agent.store import Store
+
+# Settings a JSON config may set, mapped to internal keys. CLI flags override these.
+CONFIG_KEYS = {
+    "window_ms": ("WINDOW_MS", int),
+    "enroll_windows": ("ENROLL_WINDOWS", int),
+    "retrain_every": ("RETRAIN_EVERY", int),
+    "oneclass_frr": ("ONECLASS_FRR", float),
+    "high_consecutive": ("HIGH_CONSECUTIVE_FOR_STEPUP", int),
+}
+
+
+def resolve_population(path: str) -> str:
+    """When running as a PyInstaller one-file build, the model is unpacked into the
+    temporary bundle dir (sys._MEIPASS). Prefer that copy; fall back to `path`."""
+    bundled = getattr(sys, "_MEIPASS", None)
+    if bundled:
+        cand = os.path.join(bundled, "population.joblib")
+        if os.path.exists(cand):
+            return cand
+    return path
 
 
 def _simulator(cap, rnd):
@@ -43,23 +70,48 @@ def _simulator(cap, rnd):
         cap._push({"t": t, "type": "click"})
 
 
+def load_config(path: str | None) -> dict:
+    if not path:
+        return {}
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
 def build(args):
-    if args.dry_run:
+    conf = load_config(args.config)
+    if args.dry_run or conf.get("dry_run"):
         os.environ["CA_AGENT_DRY_RUN"] = "1"
+
     cfg = dict(CFG)
-    cfg["WINDOW_MS"] = args.window_ms
-    if args.enroll:
+    for key, (internal, cast) in CONFIG_KEYS.items():
+        if conf.get(key) is not None:
+            cfg[internal] = cast(conf[key])
+    if args.window_ms is not None:
+        cfg["WINDOW_MS"] = args.window_ms
+    if args.enroll is not None:
         cfg["ENROLL_WINDOWS"] = args.enroll
+    if args.high_consecutive is not None:
+        cfg["HIGH_CONSECUTIVE_FOR_STEPUP"] = args.high_consecutive
+
+    warmup_min = args.warmup_min if args.warmup_min is not None else conf.get("warmup_minutes", 2)
+    cooldown_s = args.cooldown_sec if args.cooldown_sec is not None else conf.get("lock_cooldown_seconds", 20)
+    monitor_only = args.monitor_only or bool(conf.get("monitor_only"))
+    use_face = args.face or bool(conf.get("face"))
+
     store = Store(args.data_dir)
-    engine = AuthEngine(store, cfg=cfg, population_path=args.population)
+    engine = AuthEngine(store, cfg=cfg, population_path=resolve_population(args.population))
+
     face_fn = None
-    if args.face:
+    if use_face:
         from contauth.agent import face
         if face.available():
             face_fn = lambda: face.confirm_presence(logger=lambda m: print("[face]", m))  # noqa: E731
         else:
             print("Face check requested but OpenCV/camera unavailable; continuing without it.")
-    controller = Controller(engine, store, face_fn=face_fn)
+
+    controller = Controller(engine, store, face_fn=face_fn,
+                            warmup_s=float(warmup_min) * 60.0, cooldown_s=float(cooldown_s),
+                            monitor_only=monitor_only)
     return store, engine, controller, cfg
 
 
@@ -68,11 +120,12 @@ def run_headless(args):
     store, engine, controller, cfg = build(args)
     rnd = random.Random(args.seed)
     controller.logger = lambda k, s, d: print(f"  [{s}] {k}: {d}")
-    print(f"Agent (headless, simulate). window={cfg['WINDOW_MS']}ms enroll={cfg['ENROLL_WINDOWS']}")
+    mode = "monitor-only" if controller.monitor_only else "enforcing"
+    print(f"Agent (headless, simulate, {mode}). window={cfg['WINDOW_MS']}ms enroll={cfg['ENROLL_WINDOWS']} "
+          f"warmup={controller.warmup_s:.0f}s cooldown={controller.cooldown_s:.0f}s")
     from contauth.agent.capture import Capture
     cap = Capture()
-    n = args.windows
-    for i in range(n):
+    for i in range(args.windows):
         if i == args.bot_at:
             for k in range(150):
                 cap._push({"t": k * 20, "type": "mousemove", "x": 100 + 6 * k, "y": 300})
@@ -95,6 +148,8 @@ def run_gui(args):
     win = StatusWindow(controller, on_quit=lambda: (cap.stop(), store.close()))
     controller.logger = lambda k, s, d: win.add_log(k, s, d)
 
+    if controller.monitor_only:
+        win.add_log("mode", "info", "monitor-only: will observe and log, never lock")
     if args.simulate:
         win.add_log("mode", "info", "simulate: synthetic activity, global hooks OFF")
     else:
@@ -103,6 +158,8 @@ def run_gui(args):
             win.add_log("capture", "info", "monitoring the desktop — timing only, never keystrokes")
         except Exception as e:
             win.add_log("capture_error", "warning", f"could not start global hooks: {e}. Try --simulate.")
+    if controller.warmup_s and not controller.monitor_only:
+        win.add_log("warmup", "info", f"warm-up grace: {controller.warmup_s/60:.0f} min before it will lock")
 
     def tick():
         try:
@@ -121,8 +178,16 @@ def run_gui(args):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="ContAuth continuous-authentication desktop agent")
-    ap.add_argument("--window-ms", type=int, default=5000, dest="window_ms")
-    ap.add_argument("--enroll", type=int, default=12, help="clean windows before a personal profile is built")
+    ap.add_argument("--config", default=None, help="JSON settings file (see agent-config.example.json)")
+    ap.add_argument("--window-ms", type=int, default=None, dest="window_ms")
+    ap.add_argument("--enroll", type=int, default=None, help="clean windows before a personal profile is built")
+    ap.add_argument("--high-consecutive", type=int, default=None, dest="high_consecutive",
+                    help="HIGH windows in a row before locking (2 default; 3 is gentler)")
+    ap.add_argument("--warmup-min", type=float, default=None, dest="warmup_min",
+                    help="minutes after launch during which behaviour step-ups only warn (default 2)")
+    ap.add_argument("--cooldown-sec", type=float, default=None, dest="cooldown_sec",
+                    help="seconds to suppress re-locking after a lock (default 20)")
+    ap.add_argument("--monitor-only", action="store_true", help="never lock; only log what it would do")
     ap.add_argument("--data-dir", default=None, help="SQLite file path (default: per-user app data)")
     ap.add_argument("--population", default=CFG["POPULATION_MODEL"])
     ap.add_argument("--face", action="store_true", help="consented camera presence check on step-up")

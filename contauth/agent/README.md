@@ -83,3 +83,51 @@ installed scikit-learn — no pickled model is shipped or loaded from disk.
 - Keystroke/mouse dynamics need a few windows (~1 min) to enroll; during cold start
   the shared population model is used at half weight, so the agent stays at MEDIUM
   and only monitors.
+
+## Daily use on your own device
+
+For real everyday use you want it to protect the machine without locking you out by
+surprise. Three guards make that safe (all tunable in a config file):
+
+- **Warm-up** — for the first few minutes after launch, a behaviour-only step-up
+  just *warns*; a bot or a stolen-cookie signal still locks immediately.
+- **Cooldown** — after a lock it won't lock again for a few seconds, so typing your
+  password to sign back in doesn't trigger another lock.
+- **Monitor-only** — `--monitor-only` never locks, it only logs what it *would* do.
+  Run this for a few days first to see how often it would have acted, then switch
+  enforcement on once you trust it.
+
+Recommended first run (watch, don't enforce):
+
+```bash
+python -m contauth.agent --monitor-only
+```
+
+Then enforce with gentle settings via a config file (copy
+`agent-config.example.json` to `agent-config.json` and edit):
+
+```bash
+python -m contauth.agent --config agent-config.json
+```
+
+The example config enrolls over ~1.7 min, requires **3** HIGH windows in a row
+(gentler than the default 2), gives a 5-minute warm-up and a 30-second cooldown.
+
+### Start it automatically on login
+
+```bash
+python -m contauth.agent.autostart install        # start on next login
+python -m contauth.agent.autostart status
+python -m contauth.agent.autostart uninstall
+```
+
+The entry is a plain, visible file you can also delete by hand (Startup folder on
+Windows, a LaunchAgent on macOS, an autostart `.desktop` on Linux). Auto-start only
+saves you from launching it each time — the window still opens and you can pause or
+quit whenever you like.
+
+### Make it a double-click app
+
+To turn it into a single `ContAuth.exe` (Windows) or binary (macOS/Linux) with the
+model bundled inside, see **[packaging/README.md](../../packaging/README.md)**.
+PyInstaller builds for the OS it runs on, so build the `.exe` on Windows.

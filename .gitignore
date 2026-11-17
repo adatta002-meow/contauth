@@ -1,4 +1,9 @@
-instance/
 __pycache__/
 *.pyc
+instance/
 .pytest_cache/
+# PyInstaller build artifacts (the app is built per-OS on the target machine)
+build/
+dist/
+*.spec.bak
+agent-config.json

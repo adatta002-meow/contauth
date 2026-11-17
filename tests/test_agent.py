@@ -167,3 +167,99 @@ def test_capture_move_throttled():
     cap._on_move(0, 0)
     cap._on_move(5, 5)  # within the throttle window -> dropped
     assert len(cap.drain()) == 1
+
+
+# ---- auto-start installer ----
+from contauth.agent import autostart as AS
+
+
+def test_autostart_install_windows(tmp_path):
+    base = tmp_path / "Startup"
+    path = AS.install(exe="C:\\apps\\ContAuth.exe", platform="win32", base=base)
+    assert path.exists() and path.name == "ContAuth.cmd"
+    body = path.read_text()
+    assert "ContAuth.exe" in body and "start" in body.lower()
+    assert AS.status("win32", base) is True
+    assert AS.uninstall("win32", base) is True
+    assert AS.status("win32", base) is False
+
+
+def test_autostart_macos_plist(tmp_path):
+    path = AS.install(exe="/Applications/ContAuth.app/ContAuth", platform="darwin", base=tmp_path)
+    assert path.suffix == ".plist" and "com.contauth.agent" in path.read_text()
+    assert "RunAtLoad" in path.read_text()
+
+
+def test_autostart_linux_desktop(tmp_path):
+    path = AS.install(platform="linux", base=tmp_path, extra="--window-ms 5000")
+    assert path.suffix == ".desktop"
+    body = path.read_text()
+    assert "contauth.agent" in body and "--window-ms 5000" in body
+
+
+def test_autostart_uninstall_missing(tmp_path):
+    assert AS.uninstall("linux", tmp_path) is False
+
+
+# ---- daily-use safety: warm-up, cooldown, monitor-only, config ----
+def _bot_window():
+    return [{"t": i * 20, "type": "mousemove", "x": 100 + 6 * i, "y": 300} for i in range(150)], 0, 5000
+
+
+def test_monitor_only_never_locks(tmp_path):
+    s = Store(tmp_path / "mo.db")
+    eng = AuthEngine(s, cfg=cfg(), population_path=POP)
+    locks = []
+    c = Controller(eng, s, lock_fn=lambda logger=None: locks.append(1), monitor_only=True)
+    c.process_window(*_bot_window())
+    assert locks == [] and c.locks == 0
+    assert any(e["kind"] == "would_lock" for e in s.events())
+
+
+def test_warmup_warns_on_behaviour_but_bot_still_locks(tmp_path):
+    s = Store(tmp_path / "wu.db")
+    eng = AuthEngine(s, cfg=cfg(), population_path=POP)
+    clk = [1000.0]
+    locks = []
+    c = Controller(eng, s, lock_fn=lambda logger=None: locks.append(1),
+                   warmup_s=300.0, clock=lambda: clk[0])
+    # behaviour-only step-up during warm-up -> warn only, no lock
+    c._enforce({"components": {"overrides": []}}, "warning", "behaviour")
+    assert locks == [] and any(e["kind"] == "warn_only" for e in s.events())
+    # a critical threat during warm-up still locks
+    c._enforce({"components": {"overrides": ["automation"]}}, "critical", "bot")
+    assert locks == [1]
+
+
+def test_cooldown_suppresses_relock(tmp_path):
+    s = Store(tmp_path / "cd.db")
+    eng = AuthEngine(s, cfg=cfg(), population_path=POP)
+    clk = [1000.0]
+    locks = []
+    c = Controller(eng, s, lock_fn=lambda logger=None: locks.append(1),
+                   cooldown_s=30.0, clock=lambda: clk[0])
+    c._enforce({"components": {"overrides": ["automation"]}}, "critical", "bot")
+    assert locks == [1]
+    clk[0] += 5  # within cooldown
+    c._enforce({"components": {"overrides": ["automation"]}}, "critical", "bot")
+    assert locks == [1] and any(e["kind"] == "lock_suppressed" for e in s.events())
+    clk[0] += 40  # past cooldown
+    c._enforce({"components": {"overrides": ["automation"]}}, "critical", "bot")
+    assert locks == [1, 1]
+
+
+def test_config_file_overrides(tmp_path):
+    import json
+    from contauth.agent.main import build
+    cfgfile = tmp_path / "c.json"
+    cfgfile.write_text(json.dumps({"enroll_windows": 25, "high_consecutive": 3,
+                                   "warmup_minutes": 7, "monitor_only": True}))
+
+    class A:
+        config = str(cfgfile); window_ms = None; enroll = None; high_consecutive = None
+        warmup_min = None; cooldown_sec = None; monitor_only = False; face = False
+        dry_run = True; data_dir = str(tmp_path / "d.db"); population = POP
+    store, engine, controller, c = build(A())
+    assert c["ENROLL_WINDOWS"] == 25 and c["HIGH_CONSECUTIVE_FOR_STEPUP"] == 3
+    assert controller.monitor_only is True and controller.warmup_s == 420.0
+    store.close()

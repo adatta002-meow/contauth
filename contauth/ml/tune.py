@@ -200,7 +200,7 @@ def main():
            "chosen_per_seed": {s: " | ".join(c) for s, c in chosen.items()}, "inner_auc": inner_table,
            "summary": summary, "per_user": per_user}
     (ROOT / "reports").mkdir(exist_ok=True)
-    (ROOT / "reports" / "tuning.json").write_text(json.dumps(out, indent=2))
+    (ROOT / "reports" / "tuning.json").write_text(json.dumps(out, indent=2), encoding="utf-8")
     print(json.dumps({"chosen": out["chosen_per_seed"], "auc": summary["auc"], "baseline_auc": summary["baseline_auc"],
                       "eer": summary["eer"], "baseline_eer": summary["baseline_eer"]}, indent=1))
     for p, v in summary["points"].items():
@@ -267,7 +267,7 @@ def write_report(path_json=None, path_md=None):
         "User `31eed1` stays near chance: with these features their sessions are indistinguishable from other users'. "
         "The model is honest about this rather than overfitting.",
     ]
-    pm.write_text("\n".join(L) + "\n")
+    pm.write_text("\n".join(L) + "\n", encoding="utf-8")
     return pm
 
 

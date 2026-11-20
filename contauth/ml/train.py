@@ -169,7 +169,7 @@ def write_markdown(path, meta, users, summary, fi, sizes):
         "and the FAR/FRR operating points, are in `tuning.md`.",
         "- Rows use a fixed 0.5 threshold; the live system calibrates a per-user threshold instead (see `tuning.md`).",
     ]
-    Path(path).write_text("\n".join(lines) + "\n")
+    Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main(argv=None):
@@ -201,7 +201,7 @@ def main(argv=None):
     joblib.dump({"scorer": pop, "features": MODEL_FEATURES, "meta": meta}, mdir / "population.joblib")
 
     (rdir / "benchmark.json").write_text(json.dumps(
-        {"meta": meta, "users": users, "summary": summary, "per_user": per_user, "feature_importance": fi.to_dict()}, indent=2))
+        {"meta": meta, "users": users, "summary": summary, "per_user": per_user, "feature_importance": fi.to_dict()}, indent=2), encoding="utf-8")
     write_markdown(rdir / "benchmark.md", meta, users, summary, fi, sizes)
     print(f"Saved {mdir/'population.joblib'} and reports in {rdir}")
 

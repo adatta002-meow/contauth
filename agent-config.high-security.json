@@ -1,0 +1,23 @@
+{
+  "_comment": "High-security: fastest detection the method allows. Run: ContAuth.exe --config agent-config.high-security.json",
+
+  "window_ms": 3000,
+  "enroll_windows": 20,
+  "retrain_every": 10,
+  "oneclass_frr": 0.05,
+
+  "high_consecutive": 1,
+  "warmup_minutes": 1,
+  "lock_cooldown_seconds": 10,
+
+  "monitor_only": false,
+  "face": false,
+  "dry_run": false,
+
+  "_notes": {
+    "detection": "3 s windows + lock on the FIRST HIGH window => catches an impostor in ~3-6 seconds.",
+    "cost": "Locking on one bad window means MORE false locks for the real user. That is the speed/false-alarm tradeoff; there is no way around it.",
+    "enrollment": "Kept at 20 windows (~60 s) on purpose: because it locks on a single bad window, the profile must be steady or you will lock yourself out often.",
+    "bots_and_cookies": "Deterministic threats (scripted input, stolen-cookie signals) already lock instantly, in any config."
+  }
+}

@@ -1,0 +1,49 @@
+name: Build Windows app
+
+# Builds ContAuth.exe on a real Windows runner (PyInstaller cannot cross-compile a
+# Windows binary from Linux). Runs on demand, and on a version tag it also attaches
+# the .exe to a GitHub Release so there is a permanent download link.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy scipy scikit-learn joblib pandas pynput pyinstaller
+
+      - name: Train the population model (matches the runner's scikit-learn)
+        run: python -m contauth.ml.train
+
+      - name: Build the one-file app
+        run: pyinstaller packaging/agent.spec --noconfirm
+
+      - name: Smoke-test the frozen app
+        run: dist\ContAuth.exe --headless --simulate --dry-run --window-ms 2000 --enroll 8 --windows 10 --bot-at 9 --data-dir ci.db
+
+      - name: Upload the exe as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ContAuth-windows
+          path: dist/ContAuth.exe
+
+      - name: Attach the exe to a Release (tag builds only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/ContAuth.exe

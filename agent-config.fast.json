@@ -1,0 +1,21 @@
+{
+  "_comment": "Quick enrollment for testing/demo. Run: ContAuth.exe --config agent-config.fast.json",
+
+  "window_ms": 2000,
+  "enroll_windows": 4,
+  "retrain_every": 4,
+  "oneclass_frr": 0.05,
+
+  "warmup_minutes": 0.5,
+  "lock_cooldown_seconds": 10,
+
+  "monitor_only": false,
+  "face": false,
+  "dry_run": false,
+
+  "_notes": {
+    "speed": "4 windows x 2 s = ~8 s to enroll; 30 s warm-up.",
+    "tradeoff": "A profile from ~8 s of activity is weak — great for a demo, but it will misfire more in real daily use. For real protection prefer agent-config.example.json (20 windows).",
+    "dry_run": "set true to log 'would lock' instead of locking while you test."
+  }
+}

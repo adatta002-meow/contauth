@@ -110,8 +110,8 @@ Then enforce with gentle settings via a config file (copy
 python -m contauth.agent --config agent-config.json
 ```
 
-The example config enrolls over ~1.7 min, requires **3** HIGH windows in a row
-(gentler than the default 2), gives a 5-minute warm-up and a 30-second cooldown.
+The example config enrolls in about 24 s (8 windows x 3 s), requires **3** HIGH windows in a row
+(gentler than the default 2), gives a 30-second warm-up and a 30-second cooldown.
 
 ### Start it automatically on login
 

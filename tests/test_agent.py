@@ -263,3 +263,18 @@ def test_config_file_overrides(tmp_path):
     assert c["ENROLL_WINDOWS"] == 25 and c["HIGH_CONSECUTIVE_FOR_STEPUP"] == 3
     assert controller.monitor_only is True and controller.warmup_s == 420.0
     store.close()
+
+
+def test_agent_fast_defaults(tmp_path):
+    """The built app should enroll quickly out of the box (no flags)."""
+    from contauth.agent.main import build, AGENT_DEFAULTS, DEFAULT_WARMUP_MIN
+
+    class A:
+        config = None; window_ms = None; enroll = None; high_consecutive = None
+        warmup_min = None; cooldown_sec = None; monitor_only = False; face = False
+        dry_run = True; data_dir = str(tmp_path / "d.db"); population = POP
+    store, engine, controller, c = build(A())
+    assert c["WINDOW_MS"] == 3000 and c["ENROLL_WINDOWS"] == 8
+    assert c["ENROLL_WINDOWS"] * c["WINDOW_MS"] / 1000 <= 30  # enrolls within 30 s
+    assert controller.warmup_s == DEFAULT_WARMUP_MIN * 60
+    store.close()

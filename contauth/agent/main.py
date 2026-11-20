@@ -42,6 +42,13 @@ CONFIG_KEYS = {
     "high_consecutive": ("HIGH_CONSECUTIVE_FOR_STEPUP", int),
 }
 
+# The agent runs with short windows and fast enrollment by default, so a user is
+# protected within about half a minute of launching it. (The web/server config
+# defaults are tuned differently — the agent overrides them here.) Enrollment time
+# = ENROLL_WINDOWS * WINDOW_MS; 8 * 3 s = 24 s.
+AGENT_DEFAULTS = {"WINDOW_MS": 3000, "ENROLL_WINDOWS": 8, "RETRAIN_EVERY": 8}
+DEFAULT_WARMUP_MIN = 0.5  # 30 s warm-up before a behaviour step-up can lock
+
 
 def resolve_population(path: str) -> str:
     """When running as a PyInstaller one-file build, the model is unpacked into the
@@ -83,6 +90,7 @@ def build(args):
         os.environ["CA_AGENT_DRY_RUN"] = "1"
 
     cfg = dict(CFG)
+    cfg.update(AGENT_DEFAULTS)
     for key, (internal, cast) in CONFIG_KEYS.items():
         if conf.get(key) is not None:
             cfg[internal] = cast(conf[key])
@@ -93,7 +101,7 @@ def build(args):
     if args.high_consecutive is not None:
         cfg["HIGH_CONSECUTIVE_FOR_STEPUP"] = args.high_consecutive
 
-    warmup_min = args.warmup_min if args.warmup_min is not None else conf.get("warmup_minutes", 2)
+    warmup_min = args.warmup_min if args.warmup_min is not None else conf.get("warmup_minutes", DEFAULT_WARMUP_MIN)
     cooldown_s = args.cooldown_sec if args.cooldown_sec is not None else conf.get("lock_cooldown_seconds", 20)
     monitor_only = args.monitor_only or bool(conf.get("monitor_only"))
     use_face = args.face or bool(conf.get("face"))
@@ -159,7 +167,9 @@ def run_gui(args):
         except Exception as e:
             win.add_log("capture_error", "warning", f"could not start global hooks: {e}. Try --simulate.")
     if controller.warmup_s and not controller.monitor_only:
-        win.add_log("warmup", "info", f"warm-up grace: {controller.warmup_s/60:.0f} min before it will lock")
+        w = controller.warmup_s
+        human = f"{w/60:.0f} min" if w >= 60 else f"{int(w)} s"
+        win.add_log("warmup", "info", f"warm-up grace: {human} before it will lock")
 
     def tick():
         try:

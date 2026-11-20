@@ -33,7 +33,7 @@ Double-click `dist\ContAuth.exe`, or from the terminal run it in monitor-only mo
 python -m contauth.agent --monitor-only
 ```
 
-Type and use your laptop for a minute or two. The status window shows your risk and
+Type and use your laptop for about half a minute (it enrolls in ~24 s). The status window shows your risk and
 the event log, and logs "would lock" instead of locking. This shows how it behaves
 on your real usage before it can lock you.
 

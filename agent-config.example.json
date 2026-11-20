@@ -1,14 +1,14 @@
 {
   "_comment": "Copy to agent-config.json and run: python -m contauth.agent --config agent-config.json",
 
-  "window_ms": 5000,
-  "enroll_windows": 20,
+  "window_ms": 3000,
+  "enroll_windows": 8,
   "retrain_every": 8,
 
   "oneclass_frr": 0.05,
   "high_consecutive": 3,
 
-  "warmup_minutes": 5,
+  "warmup_minutes": 0.5,
   "lock_cooldown_seconds": 30,
 
   "monitor_only": false,
@@ -16,9 +16,10 @@
   "dry_run": false,
 
   "_notes": {
-    "enroll_windows": "More windows = a steadier profile and fewer false locks (20 ~= 1.7 min of use).",
+    "window_ms": "Length of each scored window. Enrollment time = enroll_windows x window_ms (8 x 3s = 24s).",
+    "enroll_windows": "Windows before a personal profile is built. More = steadier profile, slower enroll.",
     "high_consecutive": "HIGH windows in a row before locking. 3 is gentler than the default 2.",
-    "warmup_minutes": "After launch, behaviour step-ups only warn for this long; bots/cookie-replay still lock.",
+    "warmup_minutes": "After launch, behaviour step-ups only warn for this long; bots/cookie-replay still lock. 0.5 = 30s.",
     "lock_cooldown_seconds": "After a lock, do not lock again for this long (so signing back in is not interrupted).",
     "monitor_only": "true = never lock, only log. Good for your first days with the agent.",
     "dry_run": "true = log 'would lock' instead of actually locking (safe for testing)."

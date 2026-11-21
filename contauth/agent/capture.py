@@ -31,6 +31,11 @@ class Capture:
         self._buf: list[dict] = []
         self._lock = threading.Lock()
         self._last_move = 0.0
+        # Transient, in-memory only: a key's press time, used to compute how long
+        # that key is held (dwell). The key is the dict key for a few milliseconds
+        # purely to pair its own down/up; it is never stored in an event, never
+        # written to disk, and never part of any feature. Nothing leaves this dict.
+        self._down: dict = {}
         self.move_sample_ms = move_sample_ms
         self.max_buffer = max_buffer
         self._kb = None
@@ -55,12 +60,27 @@ class Capture:
         return bool(name and name in _MODIFIER_NAMES)
 
     def _on_press(self, key):
-        # The only thing we take from `key` is whether it is a modifier. The key's
-        # character/vk is never read or stored. `key` goes out of scope immediately.
-        self._push({"t": time.time() * 1000.0, "type": "keydown", "mod": self._is_modifier(key)})
+        # The only things we take from `key` are (a) whether it is a modifier and
+        # (b) a transient press timestamp to later measure its hold time. The key's
+        # character/vk is never stored in an event or on disk.
+        t = time.time() * 1000.0
+        try:
+            if key not in self._down:   # ignore auto-repeat while a key is held
+                self._down[key] = t
+        except TypeError:
+            pass  # unhashable key object: skip dwell for it, still record timing
+        self._push({"t": t, "type": "keydown", "mod": self._is_modifier(key)})
 
     def _on_release(self, key):
-        self._push({"t": time.time() * 1000.0, "type": "keyup"})
+        t = time.time() * 1000.0
+        try:
+            down = self._down.pop(key, None)
+        except TypeError:
+            down = None
+        ev = {"t": t, "type": "keyup"}
+        if down is not None:
+            ev["dwell"] = t - down   # hold duration only; the key itself is discarded
+        self._push(ev)
 
     # ---- mouse ----
     def _on_move(self, x, y):

@@ -278,3 +278,69 @@ def test_agent_fast_defaults(tmp_path):
     assert c["ENROLL_WINDOWS"] * c["WINDOW_MS"] / 1000 <= 30  # enrolls within 30 s
     assert controller.warmup_s == DEFAULT_WARMUP_MIN * 60
     store.close()
+
+
+# ---- keystroke-dynamics features (dwell/flight) ----
+from contauth.agent.capture import Capture
+from contauth.features import KEYSTROKE_FEATURES, MODEL_FEATURES, PERSONAL_FEATURES, extract_window_features
+
+
+def test_capture_emits_dwell_without_key_identity():
+    cap = Capture()
+
+    class K:
+        name = "x"          # a normal character key (not a modifier)
+    k = K()
+    cap._on_press(k)
+    import time as _t; _t.sleep(0.01)
+    cap._on_release(k)
+    evs = cap.drain()
+    down, up = evs[0], evs[1]
+    assert down["type"] == "keydown" and up["type"] == "keyup"
+    assert "dwell" in up and up["dwell"] > 0          # hold time measured
+    # privacy: neither event carries the key, its char or vk
+    for e in evs:
+        assert "key" not in e and "char" not in e and "vk" not in e
+    assert cap._down == {}                            # transient pairing dict is cleared
+
+
+def test_capture_ignores_autorepeat_for_dwell():
+    cap = Capture()
+
+    class K:
+        name = "y"
+    k = K()
+    cap._on_press(k); cap._on_press(k)   # auto-repeat: second press must not reset hold start
+    assert len(cap._down) == 1
+
+
+def test_personal_feature_set_extends_base():
+    assert all(f in PERSONAL_FEATURES for f in KEYSTROKE_FEATURES)
+    assert len(PERSONAL_FEATURES) == len(MODEL_FEATURES) + 4
+
+
+def test_engine_personal_model_uses_keystroke_features(tmp_path):
+    s = Store(tmp_path / "ks.db")
+    eng = AuthEngine(s, cfg=cfg(), population_path=POP)
+    rnd = random.Random(7)
+
+    def typed_window(t0):
+        ev, t = [], t0
+        for i in range(40):
+            ev.append({"t": t, "type": "keydown", "mod": i % 11 == 0})
+            hold = 80 + rnd.randint(0, 40)
+            ev.append({"t": t + hold, "type": "keyup", "dwell": hold})   # live dwell
+            t += hold + 40 + rnd.randint(0, 30)
+        return ev, t0, t0 + 5000
+
+    for k in range(14):
+        eng.score_window(*typed_window(k * 5000))
+    # a personal profile trained, and its training matrix has the extended width
+    assert eng.prof is not None
+    import numpy as _np
+    from contauth.features import vectorize
+    X = _np.array([vectorize(f, PERSONAL_FEATURES) for f in s.windows(60)], dtype=float)
+    assert X.shape[1] == len(PERSONAL_FEATURES)
+    # the stored windows actually carry dwell values (not all NaN)
+    dwell_col = X[:, PERSONAL_FEATURES.index("avg_dwell_ms")]
+    assert _np.isfinite(dwell_col).any()

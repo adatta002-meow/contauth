@@ -45,6 +45,15 @@ EXTRA_FEATURES = [
 ]
 ALL_FEATURES = BASE_FEATURES + EXTRA_FEATURES
 
+# Per-keystroke timing. Available only from LIVE capture, because the Capstone
+# dataset has no raw key events — so these are used by the on-device PERSONAL
+# model, never the dataset-trained population model. Privacy-safe: these are
+# hold/gap DURATIONS only; no key identity is ever recorded.
+#   dwell  = how long a key is held  (key-down -> its key-up)
+#   flight = gap from releasing one key to pressing the next (key-up -> next key-down)
+KEYSTROKE_FEATURES = ["avg_dwell_ms", "std_dwell_ms", "avg_flight_ms", "std_flight_ms"]
+PERSONAL_FEATURES = ALL_FEATURES + KEYSTROKE_FEATURES
+
 # Columns used by every live model, in input order. Chosen by nested selection
 # (contauth/ml/tune.py): the 21-feature set won in all 5 outer splits.
 MODEL_FEATURES = ALL_FEATURES
@@ -132,6 +141,23 @@ def extract_window_features(events: list[dict], start_ms: float | None = None, e
     gaps = [b - a for a, b in zip(stamps, stamps[1:]) if b - a >= IDLE_GAP_MS]
     idle_total = float(sum(gaps))
 
+    # per-keystroke timing (live capture only). dwell is carried on each key-up by
+    # the agent's capture layer (computed there by pairing a key's own down/up, with
+    # the key discarded immediately). flight = release-to-next-press gap, derived here
+    # from the key-up/key-down order without any key identity. Pauses (>= IDLE_GAP_MS)
+    # are excluded from flight so thinking time doesn't swamp the typing rhythm.
+    dwell = [e["dwell"] for e in events
+             if e["type"] == "keyup" and isinstance(e.get("dwell"), (int, float)) and 0 < e["dwell"] < 2000]
+    flights, last_up = [], None
+    for e in events:
+        if e["type"] == "keyup":
+            last_up = e["t"]
+        elif e["type"] == "keydown" and last_up is not None:
+            f = e["t"] - last_up
+            if 0 < f < IDLE_GAP_MS:
+                flights.append(f)
+            last_up = None
+
     mods = sum(1 for e in keydowns if e.get("mod"))
     avg_iki = mean(iki) if iki else None
     std_iki = pstdev(iki) if len(iki) > 1 else None
@@ -170,6 +196,11 @@ def extract_window_features(events: list[dict], start_ms: float | None = None, e
         "blur_count": sum(1 for e in events if e["type"] == "blur"),
         "idle_gap_count": len(gaps),
         "max_idle_gap_ms": max(gaps) if gaps else 0.0,
+        # per-keystroke timing (personal model only; None when no typing / not captured)
+        "avg_dwell_ms": mean(dwell) if dwell else None,
+        "std_dwell_ms": pstdev(dwell) if len(dwell) > 1 else None,
+        "avg_flight_ms": mean(flights) if flights else None,
+        "std_flight_ms": pstdev(flights) if len(flights) > 1 else None,
     }
 
 

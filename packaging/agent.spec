@@ -20,7 +20,7 @@ datas += collect_data_files("sklearn")
 # scikit-learn / scipy / pynput load submodules dynamically; collect them so the
 # frozen build doesn't miss an import at runtime.
 hidden = []
-for pkg in ("sklearn", "scipy", "joblib", "pynput"):
+for pkg in ("sklearn", "scipy", "joblib", "pynput", "cryptography", "contauth"):
     hidden += collect_submodules(pkg)
 
 a = Analysis(

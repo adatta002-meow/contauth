@@ -151,6 +151,14 @@ def run_headless(args):
 
 def run_gui(args):
     store, engine, controller, cfg = build(args)
+    # Sign-in gate: the agent only starts monitoring after the operator signs in with
+    # their password and a verified email. Skipped for the synthetic --simulate demo
+    # and when explicitly bypassed. On cancel, the agent does not start.
+    if not args.simulate and not args.no_auth:
+        from contauth.agent.ui_auth import AuthWindow
+        if not AuthWindow(store, cfg).run():
+            store.close()
+            return
     from contauth.agent.capture import Capture
     from contauth.agent.ui import StatusWindow
     cap = Capture()
@@ -206,6 +214,7 @@ def main(argv=None):
     ap.add_argument("--face", action="store_true", help="consented camera presence check on step-up")
     ap.add_argument("--dry-run", action="store_true", help="log the lock instead of locking")
     ap.add_argument("--simulate", action="store_true", help="feed synthetic activity instead of real hooks")
+    ap.add_argument("--no-auth", action="store_true", dest="no_auth", help="skip the sign-in gate (demo/testing)")
     ap.add_argument("--headless", action="store_true", help="no window (runs a fixed number of windows)")
     ap.add_argument("--windows", type=int, default=20, help="headless: how many windows to run")
     ap.add_argument("--bot-at", type=int, default=-1, help="headless: inject a bot window at this index")

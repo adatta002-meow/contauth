@@ -524,3 +524,46 @@ def test_scoring_error_does_not_crash_agent(tmp_path):
     d = c.process_window([{"t": 1, "type": "keydown"}], 0, 5000)
     assert d["action"] == "monitor" and c.errors == 1           # degrades gracefully
     assert any(e["kind"] == "score_error" for e in s.events())
+
+
+# ---- desktop sign-in: password + verified email (account.py) ----
+from contauth.agent import account as acct
+
+
+def test_account_register_and_password(tmp_path):
+    s = Store(tmp_path / "acc.db")
+    assert acct.exists(s) is False
+    acct.register(s, "dave@gmail.com", "correct horse")
+    assert acct.exists(s) and acct.is_verified(s) is False
+    assert acct.check_password(s, "correct horse") is True
+    assert acct.check_password(s, "nope") is False
+    assert acct.get_account(s)["email"] == "dave@gmail.com"
+
+
+def test_account_email_verification_flow(tmp_path):
+    s = Store(tmp_path / "acc2.db")
+    acct.register(s, "erin@gmail.com", "correct horse")
+    code = acct.issue_code(s)
+    assert acct.check_code(s, "000000") == "wrong" and acct.is_verified(s) is False
+    assert acct.check_code(s, code) == "ok" and acct.is_verified(s) is True
+    assert s.get("email_code") is None            # code cleared after use
+
+
+def test_account_code_expiry_and_lockout(tmp_path):
+    s = Store(tmp_path / "acc3.db")
+    acct.register(s, "fay@gmail.com", "correct horse")
+    acct.issue_code(s)
+    rec = s.get("email_code"); rec["exp"] = 0; s.set("email_code", rec)   # force-expire
+    assert acct.check_code(s, "123456") == "expired"
+    # lockout after too many wrong attempts
+    acct.issue_code(s)
+    for _ in range(acct.MAX_CODE_ATTEMPTS):
+        acct.check_code(s, "000000")
+    assert acct.check_code(s, "000000") == "locked"
+
+
+def test_account_password_hash_not_plaintext(tmp_path):
+    s = Store(tmp_path / "acc4.db")
+    acct.register(s, "x@gmail.com", "super secret pw")
+    a = acct.get_account(s)
+    assert "super secret pw" not in str(a) and a["hash"] != "super secret pw"

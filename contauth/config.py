@@ -73,10 +73,11 @@ class Config:
     # so a fast-typing burst is not mistaken for someone else. The on-device personal
     # model scores on the speed-invariant RHYTHM_FEATURES when this is on.
     RHYTHM_MODE = True
-    TRUST_PENALTY_GAIN = 0.6        # how fast above-threshold windows raise penalty
-    TRUST_RECOVERY = 0.5            # how fast clean windows bleed penalty back down
-    TRUST_STEPUP_BUDGET = 0.25      # penalty at which a behaviour step-up fires
-    TRUST_TERMINATE_BUDGET = 2.0    # penalty at which corroborated risk terminates
+    TRUST_ENTER = 50               # risk above which a window adds to the penalty (lower = catches a mismatch sooner)
+    TRUST_PENALTY_GAIN = 0.8       # how fast above-threshold windows raise penalty
+    TRUST_RECOVERY = 0.5           # how fast clean windows bleed penalty back down
+    TRUST_STEPUP_BUDGET = 0.18     # penalty at which a behaviour step-up fires (lower = fewer windows to lock)
+    TRUST_TERMINATE_BUDGET = 2.0   # penalty at which corroborated risk terminates
     QUALITY_FULL_EVENTS = 60        # events for a full-quality window
     CONFIDENCE_FLOOR = 0.4          # min model confidence (cold start / unseparable user)
     CONFIDENCE_FULL_MARGIN = 0.35   # genuine-median − tau margin that counts as full confidence

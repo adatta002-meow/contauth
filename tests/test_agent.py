@@ -405,12 +405,14 @@ def test_model_confidence_tracks_separation():
 
 def test_trust_monitor_strong_anomaly_steps_up_faster_than_weak():
     tm = TrustMonitor(cfg())
-    # one strongly anomalous, high-quality, confident window is enough
-    assert tm.update(risk=92, quality=1.0, confidence=1.0, hard_override=False, behaviour_only=True)["action"] == "step_up"
+    # a clear mismatch (well above the entry threshold) locks on the first window
+    assert tm.update(risk=72, quality=1.0, confidence=1.0, hard_override=False, behaviour_only=True)["action"] == "step_up"
     tm2 = TrustMonitor(cfg())
-    first = tm2.update(risk=70, quality=1.0, confidence=1.0, hard_override=False, behaviour_only=True)
-    second = tm2.update(risk=70, quality=1.0, confidence=1.0, hard_override=False, behaviour_only=True)
-    assert first["action"] == "monitor" and second["action"] == "step_up"   # weak evidence must persist
+    # borderline evidence (just above the entry threshold) must persist a few windows
+    a = tm2.update(risk=54, quality=1.0, confidence=1.0, hard_override=False, behaviour_only=True)
+    b = tm2.update(risk=54, quality=1.0, confidence=1.0, hard_override=False, behaviour_only=True)
+    c = tm2.update(risk=54, quality=1.0, confidence=1.0, hard_override=False, behaviour_only=True)
+    assert a["action"] == "monitor" and b["action"] == "monitor" and c["action"] == "step_up"
 
 
 def test_trust_monitor_low_quality_cannot_false_lock():

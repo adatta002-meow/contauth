@@ -82,7 +82,9 @@ class TrustMonitor:
 
     def __init__(self, cfg: dict):
         self.cfg = cfg
-        self.enter = next((u for u, name in cfg["TIERS"] if name == "MEDIUM"), 60)  # HIGH boundary
+        # risk above which a window starts adding to the penalty. Configurable
+        # (TRUST_ENTER) so sensitivity can be tightened; defaults to the HIGH boundary.
+        self.enter = cfg.get("TRUST_ENTER") or next((u for u, name in cfg["TIERS"] if name == "MEDIUM"), 60)
         self.gain = cfg.get("TRUST_PENALTY_GAIN", 0.6)
         self.leak = cfg.get("TRUST_RECOVERY", 0.5)
         self.stepup_budget = cfg.get("TRUST_STEPUP_BUDGET", 0.25)

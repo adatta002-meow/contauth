@@ -567,3 +567,48 @@ def test_account_password_hash_not_plaintext(tmp_path):
     acct.register(s, "x@gmail.com", "super secret pw")
     a = acct.get_account(s)
     assert "super secret pw" not in str(a) and a["hash"] != "super secret pw"
+
+
+# ---- adaptation after sign-in: learn fast typing, don't lock (false-reject fix) ----
+def test_note_authenticated_opens_adaptation_window(tmp_path):
+    eng = AuthEngine(Store(tmp_path / "ad0.db"), cfg=cfg(), population_path=POP)
+    assert eng.adapting() is False
+    eng.note_authenticated()
+    assert eng.adapting() is True and eng.status()["adapting"] is True
+
+
+def test_adaptation_suppresses_behaviour_lock(tmp_path):
+    def primed(path):
+        e = AuthEngine(Store(tmp_path / path), cfg=cfg(), population_path=POP)
+        e.prof = {"n": 20, "tau": 0.1, "med": 0.65}; e.confidence = 0.9
+        e.ewma = 90.0
+        e.genuineness = lambda feats: (0.05, "personal", 1.0)   # strong, sustained mismatch
+        return e
+    # WITHOUT adaptation: a sustained behaviour mismatch escalates to a lock
+    e1 = primed("ad1a.db")
+    acts = [e1.score_window(*human(random.Random(i), i * 5000))["action"] for i in range(10)]
+    assert "step_up" in acts or "terminate" in acts
+    # WITH adaptation (just signed in): it never locks on behaviour
+    e2 = primed("ad1b.db"); e2.note_authenticated(); e2.ewma = 90.0
+    acts2 = [e2.score_window(*human(random.Random(i), i * 5000))["action"] for i in range(10)]
+    assert all(a in ("allow", "monitor") for a in acts2)
+
+
+def test_adaptation_enrolls_medium_windows_to_widen_profile(tmp_path):
+    s = Store(tmp_path / "ad2.db")
+    eng = AuthEngine(s, cfg=cfg(), population_path=POP)
+    eng.prof = {"n": 20, "tau": 0.1, "med": 0.65}; eng.confidence = 0.9
+    eng.note_authenticated()
+    eng.ewma = 45.0
+    eng.genuineness = lambda feats: (0.45, "personal", 1.0)   # MEDIUM: mildly unusual but clean
+    before = s.window_count()
+    eng.score_window(*human(random.Random(6), 0))
+    assert s.window_count() > before                 # the window widened the profile
+
+
+def test_bot_still_terminates_during_adaptation(tmp_path):
+    eng = AuthEngine(Store(tmp_path / "ad3.db"), cfg=cfg(), population_path=POP)
+    eng.note_authenticated()
+    bot = [{"t": i * 20, "type": "mousemove", "x": 100 + 6 * i, "y": 300} for i in range(150)]
+    d = eng.score_window(bot, 0, 5000)
+    assert d["action"] == "terminate"                # deterministic threats are never suppressed

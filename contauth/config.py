@@ -83,6 +83,16 @@ class Config:
     # Deterministic threats (bot input, replayed windows, session-binding) are NOT
     # gated by this and still act immediately.
     ENFORCE_MIN_CONFIDENCE = 0.55
+    # Adaptation: right after the operator signs in (password + verified email) or
+    # passes a re-check, we have strong proof it's them. For a short window the agent
+    # LEARNS their current behaviour — including fast typing or a different pace — and
+    # will not lock on behaviour alone, so a speed change right after login can't lock
+    # them out. Deterministic threats (bot input, replay) still act. The profile also
+    # keeps absorbing mildly-unusual (MEDIUM) windows while trust is high, so it widens
+    # to the user's real range instead of rejecting it.
+    ADAPT_AFTER_AUTH_MIN = 5         # minutes of learn-and-don't-lock after a sign-in
+    ADAPT_ENROLL_MEDIUM = True       # let MEDIUM, clean windows widen the profile
+    DRIFT_TRUST_MIN = 75             # trust score above which MEDIUM windows may enroll
 
     # Anti-spoofing: replay / signal-quality gating (agent, deterministic).
     REPLAY_MAX_SKEW_MS = 5000       # a window whose clock runs backwards > this is rejected

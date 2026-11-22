@@ -159,6 +159,9 @@ def run_gui(args):
         if not AuthWindow(store, cfg).run():
             store.close()
             return
+        # strong proof of identity: learn the operator's current behaviour and don't
+        # lock on behaviour alone for the next few minutes
+        engine.note_authenticated()
     from contauth.agent.capture import Capture
     from contauth.agent.ui import StatusWindow
     cap = Capture()

@@ -162,6 +162,8 @@ class StatusWindow:
             return "LOCKING", C["crit"], "Critical anomaly — locking the screen for re-authentication."
         if action == "step_up":
             return "RE-AUTH NEEDED", C["bad"], "Behaviour stopped matching your profile — re-authentication required."
+        if s.get("adapting"):
+            return "LEARNING YOU", C["idle"], "Just signed in — learning your current rhythm, including fast typing. It won't lock on behaviour yet."
         if s["trust"] >= 70:
             return "PROTECTED", C["good"], "Behaviour matches your profile. You are verified."
         return "WATCHING", C["warn"], "Gathering evidence — trust is below the comfortable range."

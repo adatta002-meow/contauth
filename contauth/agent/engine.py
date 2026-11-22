@@ -62,6 +62,7 @@ class AuthEngine:
         self._recent = deque(maxlen=self.cfg.get("REPLAY_DUP_HISTORY", 16))
         self.replays = 0
         self.low_quality_dropped = 0
+        self._adapt_until = 0.0        # learn-and-don't-lock window after a sign-in
         self._train_if_ready()
 
     # ---- models ----
@@ -187,6 +188,15 @@ class AuthEngine:
             d["trust"] = round(max(0.0, 100.0 - d["risk"]), 1)
             d["penalty"] = 0.0
 
+        # Adaptation: for a short window after the operator signs in / re-authenticates,
+        # we have strong proof of identity, so behaviour alone must not lock — the agent
+        # is still learning the operator's current pace (e.g. fast typing). Deterministic
+        # threats (hard_override) are never suppressed.
+        adapting = time.time() < self._adapt_until
+        if adapting and behaviour_only and d["action"] in ("step_up", "terminate"):
+            d["action"] = "monitor"
+            d["adapting"] = True
+
         # Replay: a duplicated behaviour window is a tamper tell. Force at least a
         # step-up (re-auth), but do not escalate straight to terminate on one event.
         if replay == "duplicate_window":
@@ -197,8 +207,17 @@ class AuthEngine:
         self.tier = d["tier"]
         self.last = d
 
-        # Enrollment also requires a genuinely rich window (anti-poisoning).
-        enroll_ok = d["enrollable"] and quality >= self.cfg.get("MIN_QUALITY_TO_ENROLL", 0.5) and replay is None
+        # Enrollment also requires a genuinely rich window (anti-poisoning). Beyond the
+        # policy's own LOW-only rule, the profile ADAPTS to the real user: a clean,
+        # mildly-unusual (MEDIUM) window is absorbed while we're adapting after a sign-in
+        # or while trust is high — this is how the profile learns the user's fast typing
+        # instead of rejecting it. Overrides, replays and thin windows never enroll.
+        mild = d["tier"] in ("LOW", "MEDIUM")
+        trusted_now = self.trust is not None and self.trust.s.trust >= self.cfg.get("DRIFT_TRUST_MIN", 75)
+        adaptive_enroll = (self.cfg.get("ADAPT_ENROLL_MEDIUM", True) and enough and mild
+                           and not overrides and (adapting or trusted_now))
+        enroll_ok = ((d["enrollable"] or adaptive_enroll)
+                     and quality >= self.cfg.get("MIN_QUALITY_TO_ENROLL", 0.5) and replay is None)
         if enroll_ok:
             self.store.add_window(_trim(feats), self.cfg["PROFILE_MAX_WINDOWS"])
             self.enrolled = self.store.window_count()
@@ -252,6 +271,17 @@ class AuthEngine:
         if self.trust is not None:
             self.trust.recover()
 
+    def note_authenticated(self):
+        """Call right after the operator signs in (password + verified email) or passes
+        a re-check. Opens an adaptation window: the agent learns the operator's current
+        behaviour and will not lock on behaviour alone for a few minutes, so a change of
+        pace (e.g. typing fast) right after login cannot lock them out."""
+        self._adapt_until = time.time() + self.cfg.get("ADAPT_AFTER_AUTH_MIN", 5) * 60.0
+        self.note_reauth()
+
+    def adapting(self) -> bool:
+        return time.time() < self._adapt_until
+
     def enforcement_ready(self) -> bool:
         """Behaviour-based locking is allowed only once the agent actually recognises
         the user: a personal model exists and separates them from others well enough
@@ -269,4 +299,5 @@ class AuthEngine:
                 "trust": round(self.trust.s.trust, 1) if self.trust else round(max(0.0, 100.0 - self.risk), 1),
                 "quality": round(self.quality, 2),
                 "confidence": round(self.confidence, 2),
-                "replays": self.replays}
+                "replays": self.replays,
+                "adapting": self.adapting()}

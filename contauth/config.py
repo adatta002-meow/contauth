@@ -61,6 +61,13 @@ class Config:
     QUALITY_FULL_EVENTS = 60        # events for a full-quality window
     CONFIDENCE_FLOOR = 0.4          # min model confidence (cold start / unseparable user)
     CONFIDENCE_FULL_MARGIN = 0.35   # genuine-median − tau margin that counts as full confidence
+    # The agent will only LOCK on behavioural evidence once it actually recognises
+    # you: a personal model exists and separates you from others well enough. Below
+    # this confidence it observes and warns instead of locking, so it can't lock you
+    # out of your own machine just because it hasn't learned your rhythm yet.
+    # Deterministic threats (bot input, replayed windows, session-binding) are NOT
+    # gated by this and still act immediately.
+    ENFORCE_MIN_CONFIDENCE = 0.55
 
     # Anti-spoofing: replay / signal-quality gating (agent, deterministic).
     REPLAY_MAX_SKEW_MS = 5000       # a window whose clock runs backwards > this is rejected

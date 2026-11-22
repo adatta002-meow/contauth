@@ -126,9 +126,41 @@ def test_controller_face_grants_grace(tmp_path):
     # force a behaviour-only HIGH step-up (not a critical override) via a crafted state
     c = Controller(eng, s, lock_fn=lambda logger=None: locks.append(1), face_fn=lambda: True)
     eng.ewma = 100.0  # prime so the next below-threshold window is HIGH
+    eng.prof = {"n": 20, "tau": 0.1, "med": 0.65}; eng.confidence = 0.9  # recognised: enforcement ready
     d = {"action": "step_up", "tier": "HIGH", "components": {"overrides": []}}
     c._enforce(d, "warning", "test")
     assert locks == [] and any(e["kind"] == "face_confirmed" for e in s.events())
+
+
+# ---- recognition gate: don't lock the user out before the model knows them ----
+def test_no_behaviour_lock_until_model_is_confident(tmp_path):
+    s = Store(tmp_path / "rg.db")
+    eng = AuthEngine(s, cfg=cfg(), population_path=POP)      # no personal model yet
+    locks = []
+    c = Controller(eng, s, lock_fn=lambda logger=None: locks.append(1))
+    c._enforce({"components": {"overrides": []}}, "warning", "behaviour drift")
+    assert locks == [] and any(e["kind"] == "learning" for e in s.events())
+    assert eng.enforcement_ready() is False
+
+
+def test_behaviour_lock_allowed_once_confident(tmp_path):
+    s = Store(tmp_path / "rg2.db")
+    eng = AuthEngine(s, cfg=cfg(), population_path=POP)
+    eng.prof = {"n": 20, "tau": 0.1, "med": 0.65}; eng.confidence = 0.9
+    locks = []
+    c = Controller(eng, s, lock_fn=lambda logger=None: locks.append(1))
+    assert eng.enforcement_ready() is True
+    c._enforce({"components": {"overrides": []}}, "warning", "behaviour drift")
+    assert locks == [1]
+
+
+def test_deterministic_threat_locks_even_when_not_confident(tmp_path):
+    s = Store(tmp_path / "rg3.db")
+    eng = AuthEngine(s, cfg=cfg(), population_path=POP)      # unconfident / no model
+    locks = []
+    c = Controller(eng, s, lock_fn=lambda logger=None: locks.append(1))
+    c._enforce({"components": {"overrides": ["automation"]}}, "critical", "bot")
+    assert locks == [1]                                      # critical threats bypass the gate
 
 
 def test_controller_pause_skips(tmp_path):
@@ -274,8 +306,8 @@ def test_agent_fast_defaults(tmp_path):
         warmup_min = None; cooldown_sec = None; monitor_only = False; face = False
         dry_run = True; data_dir = str(tmp_path / "d.db"); population = POP
     store, engine, controller, c = build(A())
-    assert c["WINDOW_MS"] == 3000 and c["ENROLL_WINDOWS"] == 8
-    assert c["ENROLL_WINDOWS"] * c["WINDOW_MS"] / 1000 <= 30  # enrolls within 30 s
+    assert c["WINDOW_MS"] == 3000 and c["ENROLL_WINDOWS"] == 12
+    assert c["ENROLL_WINDOWS"] * c["WINDOW_MS"] / 1000 <= 40  # enrolls within ~40 s
     assert controller.warmup_s == DEFAULT_WARMUP_MIN * 60
     store.close()
 

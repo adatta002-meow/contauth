@@ -88,6 +88,15 @@ class Controller:
             self._log("warn_only", "warning", f"warm-up grace: would lock ({reason}) — holding off")
             self.engine.note_reauth()
             return
+        # recognition gate: never LOCK on behaviour until the model actually knows the
+        # user. Until then, observe and warn — the OS password still guards the machine.
+        # Deterministic threats (critical) are never gated here.
+        ready = getattr(self.engine, "enforcement_ready", lambda: True)()
+        if severity != "critical" and not ready:
+            self._log("learning", "info",
+                      f"still learning your rhythm — would step up ({reason}), observing instead of locking")
+            self.engine.note_reauth()
+            return
         # cooldown: don't re-lock the instant the user starts signing back in.
         if self.cooldown_s and (now - self._last_lock) < self.cooldown_s:
             self._log("lock_suppressed", "info", f"within cooldown; not re-locking ({reason})")

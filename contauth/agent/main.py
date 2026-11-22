@@ -46,8 +46,10 @@ CONFIG_KEYS = {
 # protected within about half a minute of launching it. (The web/server config
 # defaults are tuned differently — the agent overrides them here.) Enrollment time
 # = ENROLL_WINDOWS * WINDOW_MS; 8 * 3 s = 24 s.
-AGENT_DEFAULTS = {"WINDOW_MS": 3000, "ENROLL_WINDOWS": 8, "RETRAIN_EVERY": 8}
-DEFAULT_WARMUP_MIN = 0.5  # 30 s warm-up before a behaviour step-up can lock
+AGENT_DEFAULTS = {"WINDOW_MS": 3000, "ENROLL_WINDOWS": 12, "RETRAIN_EVERY": 10}
+DEFAULT_WARMUP_MIN = 2.0  # warm-up before a behaviour step-up can lock; recognition
+                          # gate (ENFORCE_MIN_CONFIDENCE) then holds off locking until
+                          # the model actually knows you, so normal typing won't lock you out
 
 
 def resolve_population(path: str) -> str:

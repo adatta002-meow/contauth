@@ -252,6 +252,14 @@ class AuthEngine:
         if self.trust is not None:
             self.trust.recover()
 
+    def enforcement_ready(self) -> bool:
+        """Behaviour-based locking is allowed only once the agent actually recognises
+        the user: a personal model exists and separates them from others well enough
+        (confidence >= ENFORCE_MIN_CONFIDENCE). Before that it observes and warns, so
+        it cannot lock the real user out just because it has not learned their rhythm.
+        Deterministic threats (bot input, replay, session-binding) are NOT gated here."""
+        return self.prof is not None and self.confidence >= self.cfg.get("ENFORCE_MIN_CONFIDENCE", 0.55)
+
     def status(self) -> dict:
         return {"risk": round(self.risk, 1), "tier": self.tier,
                 "model": "personal" if self.prof else "population",

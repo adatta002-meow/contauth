@@ -6,6 +6,10 @@
   <h1>Create account</h1>
   <form method="post">
     <label for="u">Username</label><input type="text" id="u" name="username" autocomplete="username" required>
+    {% if require_email %}
+    <label for="e">Email (Gmail)</label><input type="email" id="e" name="email" autocomplete="email" required placeholder="you@gmail.com">
+    <p class="muted" style="margin-top:4px">We'll send a 6-digit code here to verify it's you before your account can be used.</p>
+    {% endif %}
     <label for="p">Password (8+ characters)</label><input type="password" id="p" name="password" autocomplete="new-password" required minlength="8">
     <button type="submit">Create account</button>
   </form>

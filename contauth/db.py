@@ -13,7 +13,16 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'user',
   locked_until REAL DEFAULT 0,
+  email TEXT,
+  email_verified INTEGER NOT NULL DEFAULT 0,
   created_at REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS email_codes (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id),
+  code_hash TEXT NOT NULL,
+  expires_at REAL NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  sent_at REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
@@ -88,7 +97,27 @@ def close_db(_=None):
 
 
 def init_db():
-    get_db().executescript(SCHEMA)
+    db = get_db()
+    db.executescript(SCHEMA)
+    _migrate(db)
+
+
+def _migrate(db):
+    """Add the email-verification columns to a users table created before the feature
+    existed, and grandfather any pre-existing accounts as verified so they are not
+    locked out by the new gate."""
+    cols = {r["name"] for r in db.execute("PRAGMA table_info(users)")}
+    changed = False
+    if "email" not in cols:
+        db.execute("ALTER TABLE users ADD COLUMN email TEXT")
+        changed = True
+    if "email_verified" not in cols:
+        db.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0")
+        # accounts that predate verification keep working
+        db.execute("UPDATE users SET email_verified=1")
+        changed = True
+    if changed:
+        db.commit()
 
 
 def log_event(kind, severity="info", session_id=None, user_id=None, **detail):

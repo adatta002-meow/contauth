@@ -7,6 +7,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import re
 import secrets
 import time
 from functools import wraps
@@ -15,6 +16,7 @@ from contauth.config import Config
 
 SENSITIVE_PATHS = ("/app/settings", "/admin")
 MAX_EVENTS_PER_BATCH = 20000
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def _bootstrap_admin(app):
@@ -27,7 +29,8 @@ def _bootstrap_admin(app):
         return
     db = get_db()
     if db.execute("SELECT 1 FROM users WHERE username=?", (user,)).fetchone() is None:
-        db.execute("INSERT INTO users (username, password_hash, role, created_at) VALUES (?,?,?,?)",
+        # admins are created out of band and are verified by definition
+        db.execute("INSERT INTO users (username, password_hash, role, email_verified, created_at) VALUES (?,?,?,1,?)",
                    (user, generate_password_hash(pw), "admin", time.time()))
         db.commit()
 
@@ -38,6 +41,7 @@ def create_app(overrides: dict | None = None) -> "Flask":
                        request, session, url_for)
     from werkzeug.security import check_password_hash, generate_password_hash
 
+    from contauth import email as emailer
     from contauth import profiles
     from contauth.db import close_db, get_db, init_db, log_event
     from contauth.features import extract_window_features
@@ -78,6 +82,30 @@ def create_app(overrides: dict | None = None) -> "Flask":
         db.commit()
         log_event("session_" + status, severity, session_id=sid, user_id=row["user_id"] if row else None,
                   reason=reason, account_locked=lock_user)
+
+    def issue_code(user_id, email):
+        """Generate a 6-digit code, store only its hash, and email it. In dev mode
+        (no SMTP configured) the plaintext is stashed so the page can show it. Returns
+        True when real mail was sent."""
+        code = f"{secrets.randbelow(1000000):06d}"
+        db = get_db()
+        db.execute(
+            "INSERT INTO email_codes (user_id, code_hash, expires_at, attempts, sent_at) VALUES (?,?,?,0,?) "
+            "ON CONFLICT(user_id) DO UPDATE SET code_hash=excluded.code_hash, expires_at=excluded.expires_at, "
+            "attempts=0, sent_at=excluded.sent_at",
+            (user_id, generate_password_hash(code), time.time() + cfg()["EMAIL_CODE_TTL_MIN"] * 60, time.time()),
+        )
+        db.commit()
+        sent = False
+        try:
+            sent = emailer.send_code(cfg(), email, code)
+        except Exception as e:
+            log_event("email_send_failed", "warning", user_id=user_id, error=str(e)[:160])
+        if sent:
+            log_event("email_code_sent", session_id=None, user_id=user_id)
+        else:
+            app.config.setdefault("_DEV_CODES", {})[email] = code   # dev mode only
+        return sent
 
     def current():
         """Load and validate the server-side session on every request."""
@@ -152,7 +180,7 @@ def create_app(overrides: dict | None = None) -> "Flask":
 
     @app.before_request
     def csrf_forms():
-        if request.method == "POST" and request.endpoint not in ("login", "register", "behavior"):
+        if request.method == "POST" and request.endpoint not in ("login", "register", "behavior", "verify", "verify_resend"):
             check_csrf(request.form.get("csrf"))
 
     @app.context_processor
@@ -166,25 +194,93 @@ def create_app(overrides: dict | None = None) -> "Flask":
 
     @app.route("/register", methods=["GET", "POST"])
     def register():
+        require = cfg()["REQUIRE_EMAIL_VERIFICATION"]
         if request.method == "POST":
             u = request.form.get("username", "").strip()
             p = request.form.get("password", "")
+            em = request.form.get("email", "").strip().lower()
             if not (3 <= len(u) <= 32) or not u.replace("_", "").isalnum():
                 flash("Username: 3-32 letters, digits or underscores.")
+            elif require and not EMAIL_RE.match(em):
+                flash("Enter a valid email address — we'll send a verification code to it.")
             elif len(p) < 8:
                 flash("Password must be at least 8 characters.")
             else:
                 try:
                     db = get_db()
-                    db.execute("INSERT INTO users (username, password_hash, created_at) VALUES (?,?,?)",
-                               (u, generate_password_hash(p), time.time()))
+                    verified = 0 if (require and em) else 1
+                    cur = db.execute("INSERT INTO users (username, password_hash, email, email_verified, created_at) VALUES (?,?,?,?,?)",
+                                     (u, generate_password_hash(p), em or None, verified, time.time()))
                     db.commit()
-                    log_event("user_registered", detail_user=u)
+                    uid = cur.lastrowid
+                    log_event("user_registered", user_id=uid, detail_user=u)
+                    if require and em:
+                        sent = issue_code(uid, em)
+                        session["pending_uid"] = uid
+                        if sent:
+                            flash(f"We emailed a 6-digit code to {em}. Enter it to verify your account.")
+                        else:
+                            flash(f"Dev mode (no email server configured): your code is {app.config['_DEV_CODES'][em]}.")
+                        return redirect(url_for("verify"))
                     flash("Account created. Sign in.")
                     return redirect(url_for("login"))
                 except Exception:
                     flash("That username is taken.")
-        return render_template("register.html")
+        return render_template("register.html", require_email=require)
+
+    @app.route("/verify", methods=["GET", "POST"])
+    def verify():
+        uid = session.get("pending_uid")
+        if not uid:
+            return redirect(url_for("login"))
+        db = get_db()
+        user = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+        if user is None:
+            session.pop("pending_uid", None)
+            return redirect(url_for("register"))
+        if user["email_verified"]:
+            session.pop("pending_uid", None)
+            flash("Your email is already verified. Sign in.")
+            return redirect(url_for("login"))
+        if request.method == "POST":
+            code = request.form.get("code", "").strip()
+            rec = db.execute("SELECT * FROM email_codes WHERE user_id=?", (uid,)).fetchone()
+            if rec is None or rec["expires_at"] < time.time():
+                flash("That code has expired. Request a new one.")
+            elif rec["attempts"] >= cfg()["EMAIL_MAX_ATTEMPTS"]:
+                flash("Too many incorrect attempts. Request a new code.")
+            elif check_password_hash(rec["code_hash"], code):
+                db.execute("UPDATE users SET email_verified=1 WHERE id=?", (uid,))
+                db.execute("DELETE FROM email_codes WHERE user_id=?", (uid,))
+                db.commit()
+                app.config.get("_DEV_CODES", {}).pop(user["email"], None)
+                log_event("email_verified", user_id=uid)
+                session.pop("pending_uid", None)
+                flash("Email verified. You can sign in now.")
+                return redirect(url_for("login"))
+            else:
+                db.execute("UPDATE email_codes SET attempts=attempts+1 WHERE user_id=?", (uid,))
+                db.commit()
+                log_event("email_code_wrong", "warning", user_id=uid)
+                flash("Incorrect code. Check the digits and try again.")
+        dev_code = None if emailer.smtp_configured(cfg()) else app.config.get("_DEV_CODES", {}).get(user["email"])
+        return render_template("verify.html", email=user["email"], dev_code=dev_code)
+
+    @app.route("/verify/resend", methods=["POST"])
+    def verify_resend():
+        uid = session.get("pending_uid")
+        if not uid:
+            return redirect(url_for("login"))
+        db = get_db()
+        user = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+        if user and not user["email_verified"] and user["email"]:
+            rec = db.execute("SELECT sent_at FROM email_codes WHERE user_id=?", (uid,)).fetchone()
+            if rec and time.time() - rec["sent_at"] < cfg()["EMAIL_RESEND_COOLDOWN_S"]:
+                flash("Please wait a few seconds before requesting another code.")
+            else:
+                issue_code(uid, user["email"])
+                flash("A new code is on its way.")
+        return redirect(url_for("verify"))
 
     @app.route("/login", methods=["GET", "POST"])
     def login():
@@ -198,6 +294,15 @@ def create_app(overrides: dict | None = None) -> "Flask":
                 log_event("login_blocked_locked", "warning", user_id=user["id"])
                 flash(f"Account temporarily locked after a security event. Try again in {mins} min.")
             elif user and check_password_hash(user["password_hash"], request.form.get("password", "")):
+                # Email-verification gate: an unverified account cannot start a session
+                # (and therefore cannot enroll). Re-issue a code and send them to verify.
+                if cfg()["REQUIRE_EMAIL_VERIFICATION"] and not user["email_verified"]:
+                    session["pending_uid"] = user["id"]
+                    if user["email"]:
+                        issue_code(user["id"], user["email"])
+                    log_event("login_unverified", "warning", user_id=user["id"])
+                    flash("Please verify your email first — we've sent you a fresh code.")
+                    return redirect(url_for("verify"))
                 ua = request.headers.get("User-Agent", "")
                 ip = client_ip()
                 dev = device_hash(request.form.get("fp", ""), ua)

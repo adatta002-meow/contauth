@@ -22,6 +22,21 @@ class Config:
     SESSION_COOKIE_SAMESITE = "Strict"
     SESSION_COOKIE_SECURE = _env("COOKIE_SECURE", False, lambda v: v.lower() == "true")
 
+    # Email verification: a new account must confirm a one-time code sent to its email
+    # (the "verified Gmail" step) before it can sign in and start enrolling. Set the
+    # SMTP_* vars to send real mail (e.g. Gmail SMTP with an app password); with none
+    # set, the code is shown on screen in dev mode so the flow still works locally.
+    REQUIRE_EMAIL_VERIFICATION = _env("REQUIRE_EMAIL_VERIFICATION", True, lambda v: str(v).lower() != "false")
+    EMAIL_CODE_TTL_MIN = _env("EMAIL_CODE_TTL_MIN", 10, int)   # code validity window
+    EMAIL_MAX_ATTEMPTS = _env("EMAIL_MAX_ATTEMPTS", 5, int)    # wrong tries before a new code is needed
+    EMAIL_RESEND_COOLDOWN_S = _env("EMAIL_RESEND_COOLDOWN_S", 30, int)
+    SMTP_HOST = _env("SMTP_HOST", None)
+    SMTP_PORT = _env("SMTP_PORT", 587, int)
+    SMTP_USER = _env("SMTP_USER", None)
+    SMTP_PASSWORD = _env("SMTP_PASSWORD", None)
+    SMTP_FROM = _env("SMTP_FROM", None)                        # e.g. "ContAuth <you@gmail.com>"
+    SMTP_STARTTLS = _env("SMTP_STARTTLS", True, lambda v: str(v).lower() != "false")
+
     # Behaviour capture
     WINDOW_MS = _env("WINDOW_MS", 30000, int)          # client batch length
     MIN_EVENTS_PER_WINDOW = _env("MIN_EVENTS", 15, int)  # below this a window carries too little evidence

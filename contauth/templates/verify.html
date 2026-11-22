@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Verify your email{% endblock %}
+{% block mainclass %}narrow{% endblock %}
+{% block content %}
+<div class="panel">
+  <h1>Verify your email</h1>
+  <p>Enter the 6-digit code we sent to <strong>{{ email }}</strong>. It confirms you own this address before your account can start learning your typing and mouse rhythm.</p>
+  {% if dev_code %}
+  <p class="muted" style="padding:10px;border:1px dashed #888;border-radius:8px">
+    Dev mode (no email server configured) — your code is <strong>{{ dev_code }}</strong>.
+    Set the SMTP_* environment variables to send real email instead.
+  </p>
+  {% endif %}
+  <form method="post">
+    <label for="code">Verification code</label>
+    <input type="text" id="code" name="code" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" required autofocus placeholder="123456">
+    <button type="submit">Verify</button>
+  </form>
+  <form method="post" action="{{ url_for('verify_resend') }}" style="margin-top:10px">
+    <button type="submit" class="alt">Send a new code</button>
+  </form>
+  <p class="muted"><a href="{{ url_for('login') }}">Back to sign in</a></p>
+</div>
+{% endblock %}

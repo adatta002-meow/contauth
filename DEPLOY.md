@@ -36,3 +36,23 @@ git push -u origin main
 | `CA_ENROLL_WINDOWS` | 20 | Windows needed before a personal profile is built |
 | `CA_OPERATING_FAR` | 0.10 | Target false-accept rate for the per-user threshold |
 | `CA_LOCK_MINUTES` | 15 | Account lock length after a critical event |
+| `CA_REQUIRE_EMAIL_VERIFICATION` | true | New accounts must confirm an emailed code before they can sign in |
+
+## Email (Gmail) verification
+
+New accounts confirm a 6-digit code sent to their email before the system starts
+learning them. **Without SMTP configured the app runs in dev mode:** no mail is sent
+and the code is shown on the verify page, so the flow works on a laptop immediately.
+
+To send real email (e.g. from a Gmail account), set these — for Gmail, create an
+[App Password](https://myaccount.google.com/apppasswords) and use it as `SMTP_PASSWORD`:
+
+| Variable | Example |
+|---|---|
+| `CA_SMTP_HOST` | `smtp.gmail.com` |
+| `CA_SMTP_PORT` | `587` |
+| `CA_SMTP_USER` | `you@gmail.com` |
+| `CA_SMTP_PASSWORD` | your 16-char Gmail App Password |
+| `CA_SMTP_FROM` | `ContAuth <you@gmail.com>` |
+
+To turn the gate off entirely (e.g. for a quick demo), set `CA_REQUIRE_EMAIL_VERIFICATION=false`.

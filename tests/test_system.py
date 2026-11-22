@@ -83,7 +83,7 @@ def test_anomalous_windows_never_enroll():
 # end to end
 @pytest.fixture
 def client(tmp_path):
-    app = create_app({"DATABASE": str(tmp_path / "t.db"), "TESTING": True, "SECRET_KEY": "test", "ENROLL_WINDOWS": 5, "RETRAIN_EVERY": 5})
+    app = create_app({"DATABASE": str(tmp_path / "t.db"), "TESTING": True, "SECRET_KEY": "test", "ENROLL_WINDOWS": 5, "RETRAIN_EVERY": 5, "REQUIRE_EMAIL_VERIFICATION": False})
     c = app.test_client()
     c.environ_base.update({"HTTP_USER_AGENT": UA, "REMOTE_ADDR": "10.0.0.1"})
     return c
@@ -275,3 +275,47 @@ def test_admin_bootstrap_and_proxy_ip(tmp_path):
     c.post("/login", data={"username": "root", "password": "rootpass1", "fp": "x"})
     assert c.get("/admin").status_code == 200
     assert "198.51.100.7" in c.get("/admin").get_data(as_text=True)
+
+
+# ---- email (Gmail) verification gate ----
+def vclient(tmp_path):
+    app = create_app({"DATABASE": str(tmp_path / "v.db"), "TESTING": True, "SECRET_KEY": "test",
+                      "REQUIRE_EMAIL_VERIFICATION": True})
+    c = app.test_client()
+    c.environ_base.update({"HTTP_USER_AGENT": UA, "REMOTE_ADDR": "10.0.0.1"})
+    return app, c
+
+
+def test_registration_requires_email(tmp_path):
+    _, c = vclient(tmp_path)
+    r = c.post("/register", data={"username": "dave", "password": "correct horse"})  # no email
+    assert b"valid email" in r.data                      # rejected, stays on register
+
+
+def test_email_verification_gates_login_and_enrollment(tmp_path):
+    app, c = vclient(tmp_path)
+    r = c.post("/register", data={"username": "dave", "email": "dave@gmail.com", "password": "correct horse"})
+    assert r.status_code == 302 and "/verify" in r.headers["Location"]
+    # cannot sign in until verified — bounced to the verify page
+    r = c.post("/login", data={"username": "dave", "password": "correct horse", "fp": "x"})
+    assert "/verify" in r.headers["Location"]
+    # a wrong code is rejected
+    assert b"Incorrect code" in c.post("/verify", data={"code": "000000"}).data
+    # the real (dev-mode) code verifies the account
+    code = app.config["_DEV_CODES"]["dave@gmail.com"]
+    r = c.post("/verify", data={"code": code})
+    assert r.status_code == 302 and "/login" in r.headers["Location"]
+    # now sign-in works and lands in the protected app (enrollment can begin)
+    r = c.post("/login", data={"username": "dave", "password": "correct horse", "fp": "x"})
+    assert r.status_code == 302 and "/app" in r.headers["Location"]
+
+
+def test_expired_code_is_rejected(tmp_path):
+    app, c = vclient(tmp_path)
+    c.post("/register", data={"username": "erin", "email": "erin@gmail.com", "password": "correct horse"})
+    code = app.config["_DEV_CODES"]["erin@gmail.com"]
+    with app.app_context():
+        from contauth.db import get_db
+        get_db().execute("UPDATE email_codes SET expires_at=? WHERE user_id=(SELECT id FROM users WHERE username='erin')",
+                         (0,)); get_db().commit()
+    assert b"expired" in c.post("/verify", data={"code": code}).data

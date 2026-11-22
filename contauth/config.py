@@ -95,7 +95,7 @@ class Config:
     # them out. Deterministic threats (bot input, replay) still act. The profile also
     # keeps absorbing mildly-unusual (MEDIUM) windows while trust is high, so it widens
     # to the user's real range instead of rejecting it.
-    ADAPT_AFTER_AUTH_MIN = 5         # minutes of learn-and-don't-lock after a sign-in
+    ADAPT_AFTER_AUTH_MIN = _env("ADAPT_AFTER_AUTH_MIN", 2, float)   # minutes of learn-and-don't-lock after a sign-in
     ADAPT_ENROLL_MEDIUM = True       # let MEDIUM, clean windows widen the profile
     DRIFT_TRUST_MIN = 75             # trust score above which MEDIUM windows may enroll
 

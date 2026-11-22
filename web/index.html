@@ -335,11 +335,20 @@ footer.ft{border-top:1px solid var(--line);background:var(--panel2)}
     <h2 id="gTitle">Connecting…</h2>
     <p class="hint" id="gInfo" style="margin-top:0">Checking your account.</p>
     <form id="gForm" hidden>
+      <div id="gEmailWrap" hidden><label for="gEmail">Email (Gmail)</label><input id="gEmail" type="email" autocomplete="email" placeholder="you@gmail.com"><p class="note" style="margin:4px 0 0">We'll send a 6-digit code to verify it's you before the app starts learning you.</p></div>
       <label for="pw">ContAuth password</label><input id="pw" type="password" minlength="6" required autocomplete="current-password">
       <div id="pw2Wrap" hidden><label for="pw2">Repeat password</label><input id="pw2" type="password" minlength="6" autocomplete="new-password"></div>
       <p class="err" id="gErr"></p>
       <button type="submit" id="gBtn" class="cta">Sign in</button>
     </form>
+    <div id="gVerify" hidden>
+      <p class="hint" id="gvInfo" style="margin-top:0">Enter the 6-digit code we sent to <b id="gvEmail"></b>.</p>
+      <div id="gCodeHint" class="note" style="padding:10px;border:1px dashed var(--line,#2a3b57);border-radius:10px;margin-bottom:10px"></div>
+      <label for="gCode">Verification code</label><input id="gCode" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="123456">
+      <p class="err" id="gvErr"></p>
+      <button type="button" id="gVerifyBtn" class="cta">Verify &amp; continue</button>
+      <button type="button" id="gResend" class="alt" style="margin-top:8px">Send a new code</button>
+    </div>
   </section>
 
   <section id="app" hidden>
@@ -518,7 +527,7 @@ const MODS=new Set(["Shift","Control","Alt","Meta","CapsLock","AltGraph"]);
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmtT=t=>t?new Date(t).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"—";
-let db=null,user=null,uid=null,isAdmin=false,POP=null,mode="local",account=null,profDoc=null,localPw=null;
+let db=null,user=null,uid=null,isAdmin=false,POP=null,mode="local",account=null,profDoc=null,localPw=null,authNeedsEmail=false,pendingAuth=null;
 let S,names={},adminRows=[],adminSel=null,sevF="",adminUnsub=null,ownUnsub=null;
 function fresh(){S={on:false,sid:"",buf:[],wStart:0,wins:[],evs:[],ewma:null,streak:0,risk:0,tier:"LOW",fails:0,net:false,bot:false,
   prof:null,X:[],since:0,lastMove:0,timer:null,paused:false,ok:false,tab:"work",newDev:false,dev:"",started:0,adminSeen:0,stepups:0,stepCancel:null}}
@@ -636,8 +645,11 @@ function persist(extra){if(mode!=="shared")return;const b=Object.assign(sessBody
 function saveProfile(extra){if(mode!=="shared")return;const b=Object.assign({},profDoc||{},{X:S.X.map(r=>({v:r})),n:S.X.length,trainedAt:S.prof?S.prof.at:0},extra||{});profDoc=b;write(()=>own("profile").set(b))}
 
 /* ---------- sign-in gate ---------- */
-function gate(title,info,form,confirm,btn){$("gTitle").textContent=title;$("gInfo").textContent=info;$("gForm").hidden=!form;$("pw2Wrap").hidden=!confirm;$("pw2").required=!!confirm;$("gBtn").textContent=btn||"Sign in";$("gErr").textContent=""}
+function gate(title,info,form,confirm,btn){$("gTitle").textContent=title;$("gInfo").textContent=info;$("gForm").hidden=!form;$("pw2Wrap").hidden=!confirm;$("pw2").required=!!confirm;$("gBtn").textContent=btn||"Sign in";$("gErr").textContent="";$("gEmailWrap").hidden=!(form&&authNeedsEmail);$("gVerify").hidden=true}
+function sendDemoCode(){pendingAuth.code=""+Math.floor(100000+Math.random()*900000);$("gCodeHint").innerHTML='Demo mode (static site has no mail server): your code is <b style="font-size:16px">'+pendingAuth.code+'</b>. The ContAuth server build emails this to your inbox instead.'}
+function showVerify(){$("gForm").hidden=true;$("gVerify").hidden=false;$("gvEmail").textContent=pendingAuth.email;$("gCode").value="";$("gvErr").textContent="";try{$("gCode").focus()}catch(e){}}
 async function boot(){
+  authNeedsEmail=false;
   const pop=fetch("population.json").then(r=>r.ok?r.json():null).then(j=>{POP=j}).catch(()=>{});
   if(!V.ok&&!V.tried){V.tried=true;fetch("viz.json").then(r=>r.ok?r.json():null).then(j=>initViz(j)).catch(()=>vizNote("3D view unavailable."))}
   try{if(window.claude&&window.claude.use){[user,db]=await Promise.all([window.claude.use("user"),window.claude.use("db")])}}catch(e){}
@@ -649,13 +661,16 @@ async function boot(){
     try{const a=await own("account").get();account=a.exists?a.data():null}catch(e){account=null}
     await pop;
     if(account)gate("Welcome back","Enter your ContAuth password to start a monitored session.",true,false,"Sign in");
-    else gate("Create your ContAuth account","Your claude.ai sign-in identifies you. Choose a separate ContAuth password: it is used to sign in and for re-checks when your behaviour looks unusual.",true,true,"Create account");
+    else{authNeedsEmail=true;gate("Create your ContAuth account","Register with your email and a ContAuth password. You'll verify the email with a 6-digit code, then the app starts learning your typing and mouse rhythm.",true,true,"Create account");}
   }else{mode="local";db=null;await pop;
     gate("Start a session","Shared storage isn't available in this view, so this session lives in this tab only: no saved profile and no admin dashboard. Choose a password for this session.",true,true,"Start");}
 }
 $("gForm").addEventListener("submit",async e=>{e.preventDefault();const pw=$("pw").value;$("gErr").textContent="";
   if(pw.length<6){$("gErr").textContent="Use at least 6 characters.";return}
   if(!$("pw2Wrap").hidden&&pw!==$("pw2").value){$("gErr").textContent="The two passwords don't match.";return}
+  if(authNeedsEmail&&!account){const em=$("gEmail").value.trim().toLowerCase();
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){$("gErr").textContent="Enter a valid email address.";return}
+    pendingAuth={email:em,pw};sendDemoCode();showVerify();return}
   $("gBtn").disabled=true;
   try{
     if(mode==="local"){localPw=pw;await startSession(null);return}
@@ -667,6 +682,23 @@ $("gForm").addEventListener("submit",async e=>{e.preventDefault();const pw=$("pw
   catch(err){if(err&&err.code==="invalid_argument"){mode="local";db=null;gate("Start a session","Your link gives view-only access, so this session runs in this tab only. Choose a password for this session.",true,true,"Start")}
     else $("gErr").textContent="Couldn't reach storage. Try again in a moment."}
   finally{$("gBtn").disabled=false;$("pw").value="";$("pw2").value=""}});
+
+$("gResend").addEventListener("click",()=>{if(pendingAuth){sendDemoCode();$("gvErr").textContent="A new code is shown above.";$("gCode").value=""}});
+$("gVerifyBtn").addEventListener("click",async()=>{
+  if(!pendingAuth)return;
+  if($("gCode").value.trim()!==pendingAuth.code){$("gvErr").textContent="Incorrect code. Check the digits and try again.";return}
+  $("gVerifyBtn").disabled=true;$("gvErr").textContent="";
+  try{
+    const cur=await sess().get(),cd=cur.exists?cur.data():null;
+    if(cd&&cd.lockedUntil>Date.now()){$("gvErr").textContent="This account is locked after a security event. Try again later.";return}
+    const salt=crypto.getRandomValues(new Uint32Array(4)).join("-");
+    account={salt,hash:await pbkdf(pendingAuth.pw,salt),email:pendingAuth.email,emailVerified:true,verifiedAt:Date.now(),created:Date.now()};
+    await own("account").set(account);
+    logEv("email_verified","info",pendingAuth.email+" verified");
+    pendingAuth=null;await startSession(cd);
+  }catch(err){if(err&&err.code==="invalid_argument"){$("gvErr").textContent="Storage is view-only here, so a verified account can't be saved. Reopen with edit access.";}
+    else $("gvErr").textContent="Couldn't reach storage. Try again in a moment."}
+  finally{$("gVerifyBtn").disabled=false}});
 
 async function startSession(cd){
   const keep=S.X;fresh();S.on=true;S.sid=crypto.getRandomValues(new Uint32Array(2)).join("");S.started=Date.now();S.wStart=Date.now();

@@ -67,6 +67,18 @@ a{color:inherit}
 /* chips */
 .chip{display:inline-block;padding:2px 10px;border-radius:99px;font-weight:600;font-size:13px;color:#fff;white-space:nowrap;transition:background .5s}
 .LOW{background:var(--low)}.MEDIUM{background:var(--med)}.HIGH{background:var(--high)}.CRITICAL{background:var(--crit)}.NONE{background:#5b6b80}
+.protect{display:flex;gap:22px;flex-wrap:wrap;align-items:center}
+.pTrust{display:flex;gap:16px;align-items:center;min-width:230px}
+.pRing{width:108px;aspect-ratio:1;position:relative;flex:none}
+.pRing svg{width:100%;height:100%}
+.pRing #pArc{transition:stroke-dasharray .9s var(--ease,ease),stroke .6s}
+.pRing b{position:absolute;inset:0;display:grid;place-items:center;font:600 32px/1 Outfit,sans-serif;font-variant-numeric:tabular-nums}
+.pRing small{position:absolute;bottom:19%;left:0;right:0;text-align:center;font-size:10px;letter-spacing:.06em;color:var(--mut);text-transform:uppercase}
+.pHealth{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;flex:1;min-width:280px}
+.pTile{background:rgb(255 255 255/.04);border:1px solid rgb(255 255 255/.08);border-radius:12px;padding:10px 12px}
+.pTile .k{font-size:10px;letter-spacing:.05em;color:var(--mut);text-transform:uppercase}
+.pTile .v{font-size:14px;font-weight:600;margin-top:4px;color:var(--ink)}
+.pTile .v.good{color:var(--low)}.pTile .v.warn{color:var(--high)}
 
 /* tabs */
 .tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:22px;align-items:center;padding:6px;border-radius:14px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow)}
@@ -342,6 +354,13 @@ footer.ft{border-top:1px solid var(--line);background:var(--panel2)}
     </nav>
 
     <div id="p-work" class="grid">
+      <div class="card rise protect" style="grid-column:1/-1">
+        <div class="pTrust">
+          <div class="pRing"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="#ffffff" stroke-opacity=".1" stroke-width="9"/><circle id="pArc" cx="50" cy="50" r="42" fill="none" stroke="var(--low)" stroke-width="9" stroke-linecap="round" stroke-dasharray="0 264" transform="rotate(-90 50 50)"/></svg><b id="pTrustN">–</b><small>trust</small></div>
+          <div><span id="pStatus" class="chip NONE">Not signed in</span><p class="stat" id="pStatusSub" style="margin-top:8px">Sign in to start continuous verification.</p></div>
+        </div>
+        <div class="pHealth" id="pHealth"></div>
+      </div>
       <div>
         <div class="card rise">
           <h2>Workspace</h2>
@@ -919,7 +938,36 @@ function render(){
   $("bars").innerHTML=[["Behaviour B",b.B,.7],["Context C",b.C,.1],["Device D",b.D,.1],["Session S",b.S,.1]].map(([n,v,w])=>`<div class="bar"><span>${n} <span class="note">×${w}</span></span><div class="track"><i style="width:${v}%"></i></div><span class="num">${Math.round(v)}</span></div>`).join("");
   const fl=S.wins.length>lastWinCount;lastWinCount=S.wins.length;$("wins").innerHTML=S.wins.length?S.wins.slice().reverse().map((w,ix)=>`<tr${ix===0&&fl?' class="new"':''}><td class="num">${w.i}</td><td>${esc(w.model)}</td><td class="num">${w.ev}</td><td class="num">${w.B}</td><td class="num">${w.risk}</td><td><span class="chip ${w.tier}">${w.tier}</span> ${w.action.replace("_"," ")}</td><td class="hide-s note">${esc(w.why)}</td></tr>`).join(""):`<tr><td colspan="7" class="note">The first window is scored 5 seconds after sign-in.</td></tr>`;
   $("events").innerHTML=S.evs.length?S.evs.slice(0,30).map(e=>`<div class="ev"><span class="t">${fmtT(e.t)}</span><span><span class="sev-${e.sev}">${esc(e.kind.replace(/_/g," "))}</span> · ${esc(e.detail)}</span></div>`).join(""):`<p class="note">No events yet.</p>`;
-  draw($("chart"),S.wins);renderHero()}
+  renderProtect(has,last);draw($("chart"),S.wins);renderHero()}
+function renderProtect(has,last){
+  const trust=has?Math.max(0,Math.round(100-S.risk)):null;
+  const colT={LOW:"var(--low)",MEDIUM:"var(--med)",HIGH:"var(--high)",CRITICAL:"var(--crit)"};
+  $("pTrustN").textContent=trust==null?"–":trust;
+  const arc=$("pArc");arc.setAttribute("stroke-dasharray",`${(trust==null?0:trust)/100*264} 264`);
+  arc.setAttribute("stroke",has?(colT[S.tier]||"var(--low)"):"#5b6b80");
+  let disp="Not signed in",cls="NONE",sub="Sign in to start continuous verification.";
+  if(has){
+    if(!S.on){disp="Session ended";cls="CRITICAL";sub="This session was terminated. Sign in again to resume.";}
+    else if(S.bot){disp="Under attack";cls="CRITICAL";sub="Automated input detected — the session is being terminated.";}
+    else if(S.paused){disp="Re-auth needed";cls="HIGH";sub="Behaviour stopped matching — confirm your password to continue.";}
+    else if(S.tier==="LOW"){disp="Protected";cls="LOW";sub="Your rhythm matches your profile. You are continuously verified.";}
+    else if(S.tier==="MEDIUM"){disp="Watching";cls="MEDIUM";sub="Gathering evidence — trust is holding but not fully settled.";}
+    else{disp="Re-auth likely";cls="HIGH";sub="Behaviour is drifting from your profile; a password check may follow.";}
+  }
+  const ps=$("pStatus");ps.className="chip "+cls;ps.textContent=disp;$("pStatusSub").textContent=sub;
+  const model=S.prof?"Personal profile":S.on?"Baseline (learning you)":"None yet";
+  const enroll=S.prof?`${S.prof.n} windows`:`${S.X.length}/${ENROLL}`;
+  const evn=last?last.ev:0;
+  const tiles=[
+    ["Model",model,S.prof?"good":""],
+    ["Enrollment",enroll,S.prof?"good":""],
+    ["Windows analysed",String(S.wins.length),""],
+    ["Last window",evn?`${evn} events`:"—",evn>=MIN_EV?"good":(S.on?"warn":"")],
+    ["Privacy","Timing only",""],
+    ["Anti-spoofing",S.on?"Active":"Off",S.on?"good":""]
+  ];
+  $("pHealth").innerHTML=tiles.map(([k,v,c])=>`<div class="pTile"><div class="k">${esc(k)}</div><div class="v${c?" "+c:""}">${esc(v)}</div></div>`).join("");
+}
 function draw(svg,wins){if(!svg)return;const Wd=svg.clientWidth,H=svg.clientHeight;if(!Wd||!H)return;const L=Wd<520?6:30,P=8,y=v=>P+(1-v/100)*(H-2*P);
   let o=[[0,30,"var(--low)"],[30,60,"var(--med)"],[60,80,"var(--high)"],[80,100,"var(--crit)"]].map(([a,b,c])=>`<rect x="${L}" width="${Wd-L}" y="${y(b)}" height="${y(a)-y(b)}" fill="${c}" opacity=".1"/>`).join("");
   if(Wd>=520)o+=[0,30,60,80,100].map(v=>`<text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--mut)">${v}</text>`).join("");

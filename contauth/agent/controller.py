@@ -37,6 +37,11 @@ class Controller:
         self._clock = clock
         self.started = clock()
         self._last_lock = -1e12
+        # robust recovery: consecutive enforcement actions with no clean window between
+        self.consecutive = 0
+        self.escalated = False
+        self.max_consecutive = int(getattr(engine, "cfg", {}).get("MAX_FAILED_STEPUPS", 3))
+        self.errors = 0
 
     def _log(self, kind, severity, detail):
         self.store.log(kind, severity, detail)
@@ -46,15 +51,29 @@ class Controller:
         """Score one window and enforce. Returns the decision dict."""
         if self.paused:
             return {"tier": "PAUSED", "action": "paused", "risk": 0}
-        d = self.engine.score_window(events, t0, t1)
+        # Reliability: a failure in scoring must never crash the agent or silently
+        # stop protecting the screen. Fall back to a safe, non-locking decision.
+        try:
+            d = self.engine.score_window(events, t0, t1)
+        except Exception as e:                       # pragma: no cover - defensive
+            self.errors += 1
+            self._log("score_error", "warning", f"scoring failed, skipping window: {e}")
+            return {"tier": "ERROR", "action": "monitor", "risk": 0, "components": {"overrides": []}}
         self.last = d
         if d.get("profile_trained"):
             self._log("profile_trained", "info", f"personal model trained on {d['profile_trained']} windows")
+        if d.get("dropped"):
+            self._log("window_dropped", "warning", f"anti-spoofing dropped a window ({d['dropped']})")
         if d["action"] == "step_up":
             self._enforce(d, "warning", "behaviour no longer matches your profile")
         elif d["action"] == "terminate":
             reason = "; ".join(d["components"]["overrides"]) or "critical behavioural risk"
             self._enforce(d, "critical", reason)
+        else:
+            # a clean window: recovery succeeded, clear the consecutive-lock counter
+            if self.consecutive and d["action"] in ("allow", "monitor"):
+                self.consecutive = 0
+                self.escalated = False
         return d
 
     def _enforce(self, d, severity, reason):
@@ -87,8 +106,17 @@ class Controller:
                 self._log("face_error", "warning", f"face check failed: {e}")
         self._log("lock_screen", severity, f"locking the screen ({reason})")
         self.locks += 1
+        self.consecutive += 1
         self._last_lock = now
         self.lock_fn(logger=lambda m: self.logger("lock", "info", m))
+        # Robust recovery: repeated locks with no clean window between them mean the
+        # operator keeps failing to re-establish trust — the session may be contested.
+        # Escalate (logged, surfaced in the UI) so it is not treated as routine.
+        if self.consecutive >= self.max_consecutive and not self.escalated:
+            self.escalated = True
+            self._log("recovery_escalation", "critical",
+                      f"{self.consecutive} consecutive locks without a trusted window — "
+                      "operator keeps failing re-authentication")
         # After locking, the OS login is the re-authentication. Reset the baseline so
         # monitoring resumes cleanly when the real user signs back in.
         self.engine.note_reauth()

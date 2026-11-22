@@ -344,3 +344,151 @@ def test_engine_personal_model_uses_keystroke_features(tmp_path):
     # the stored windows actually carry dwell values (not all NaN)
     dwell_col = X[:, PERSONAL_FEATURES.index("avg_dwell_ms")]
     assert _np.isfinite(dwell_col).any()
+
+
+# ---- sequential, multi-signal decision layer (item 1) ----
+from contauth.sequential import TrustMonitor, model_confidence, signal_quality
+
+
+def test_signal_quality_rich_vs_thin():
+    rnd = random.Random(3)
+    rich, s, e = human(rnd, 0)
+    fq = extract_window_features(rich, s, e)
+    assert signal_quality(fq, cfg()) > 0.8                      # both modalities, many events
+    thin = extract_window_features([{"t": 1, "type": "keydown"}, {"t": 2, "type": "keydown"}], 0, 5000)
+    assert signal_quality(thin, cfg()) < 0.3                    # a couple of keystrokes only
+    bot = extract_window_features([{"t": i*20, "type": "mousemove", "x": 100+6*i, "y": 300} for i in range(150)], 0, 5000)
+    assert signal_quality(bot, cfg()) < 0.5                     # degenerate repeated path
+
+
+def test_model_confidence_tracks_separation():
+    c = cfg()
+    assert model_confidence(None, c) == c["CONFIDENCE_FLOOR"]           # cold start
+    strong = model_confidence({"med": 0.7, "tau": 0.2}, c)
+    weak = model_confidence({"med": 0.30, "tau": 0.28}, c)             # barely separable user
+    assert strong > weak and weak <= 0.6
+
+
+def test_trust_monitor_strong_anomaly_steps_up_faster_than_weak():
+    tm = TrustMonitor(cfg())
+    # one strongly anomalous, high-quality, confident window is enough
+    assert tm.update(risk=92, quality=1.0, confidence=1.0, hard_override=False, behaviour_only=True)["action"] == "step_up"
+    tm2 = TrustMonitor(cfg())
+    first = tm2.update(risk=70, quality=1.0, confidence=1.0, hard_override=False, behaviour_only=True)
+    second = tm2.update(risk=70, quality=1.0, confidence=1.0, hard_override=False, behaviour_only=True)
+    assert first["action"] == "monitor" and second["action"] == "step_up"   # weak evidence must persist
+
+
+def test_trust_monitor_low_quality_cannot_false_lock():
+    tm = TrustMonitor(cfg())
+    # same strong risk but a thin / low-confidence window: must not step up alone
+    out = tm.update(risk=92, quality=0.2, confidence=0.4, hard_override=False, behaviour_only=True)
+    assert out["action"] in ("allow", "monitor")
+
+
+def test_trust_monitor_leaks_and_recovers():
+    tm = TrustMonitor(cfg())
+    tm.update(risk=70, quality=1.0, confidence=1.0, hard_override=False, behaviour_only=True)
+    tm.update(risk=5, quality=1.0, confidence=1.0, hard_override=False, behaviour_only=True)  # clean window
+    assert tm.s.penalty < 0.15                                   # penalty bled back down
+    tm.update(risk=70, quality=1.0, confidence=1.0, hard_override=False, behaviour_only=True)
+    tm.recover()
+    assert tm.s.penalty == 0.0 and tm.s.trust == 100.0
+
+
+def test_trust_behaviour_only_never_terminates():
+    tm = TrustMonitor(cfg())
+    out = {"action": "monitor"}
+    for _ in range(50):                                          # relentless high behaviour risk
+        out = tm.update(risk=100, quality=1.0, confidence=1.0, hard_override=False, behaviour_only=True)
+    assert out["action"] == "step_up"                           # escalates to re-auth, never terminate
+
+
+# ---- anti-spoofing: replay protection (item 2) ----
+def test_engine_rejects_duplicate_replayed_window(tmp_path):
+    eng = AuthEngine(Store(tmp_path / "rp.db"), cfg=cfg(), population_path=POP)
+    rnd = random.Random(9)
+    ev, s, e = human(rnd, 0)
+    eng.score_window(ev, s, e)                                   # first time: accepted
+    d = eng.score_window(list(ev), s, e)                         # identical window replayed
+    assert d["dropped"] is None if "dropped" in d else True
+    assert "replay_suspected" in " ".join(d["components"]["overrides"])
+    assert d["action"] == "step_up" and eng.replays == 1
+
+
+def test_engine_drops_stale_timestamp_window(tmp_path):
+    eng = AuthEngine(Store(tmp_path / "st.db"), cfg=cfg(), population_path=POP)
+    rnd = random.Random(10)
+    eng.score_window(*human(rnd, 1_000_000))                     # advances the clock
+    d = eng.score_window(*human(rnd, 0))                         # window from far in the past
+    assert d.get("dropped") == "stale_timestamp" and d["action"] == "monitor"
+
+
+def test_engine_thin_window_is_observed_not_locked(tmp_path):
+    eng = AuthEngine(Store(tmp_path / "tw.db"), cfg=cfg(), population_path=POP)
+    eng.ewma = 100.0                                             # prime high behaviour risk
+    # a window with a few keystrokes only: below the quality-to-score gate
+    d = eng.score_window([{"t": i*300, "type": "keydown"} for i in range(16)], 0, 5000)
+    assert d["action"] in ("allow", "monitor")                  # never locks on a thin window
+
+
+# ---- privacy: at-rest encryption + user-controlled deletion (item 4) ----
+import sqlite3 as _sqlite3
+
+
+def test_store_encrypts_features_at_rest(tmp_path):
+    s = Store(tmp_path / "enc.db")
+    if not s.encrypted:
+        pytest.skip("cryptography not installed in this environment")
+    s.add_window({"events_per_min": 123.0, "avg_dwell_ms": 91.0}, cap=50)
+    s.log("probe", "info", "secret-detail-string")
+    # read the raw bytes straight from sqlite, bypassing the vault
+    raw = _sqlite3.connect(str(tmp_path / "enc.db"))
+    feat_blob = raw.execute("SELECT features FROM windows").fetchone()[0]
+    detail_blob = raw.execute("SELECT detail FROM events").fetchone()[0]
+    assert feat_blob.startswith("enc:v1:") and "events_per_min" not in feat_blob
+    assert detail_blob.startswith("enc:v1:") and "secret-detail-string" not in detail_blob
+    # but the vault round-trips transparently
+    assert s.windows(10)[0]["events_per_min"] == 123.0
+    assert s.events()[0]["detail"] == "secret-detail-string"
+
+
+def test_store_wipe_removes_all_user_data(tmp_path):
+    s = Store(tmp_path / "wipe.db")
+    for i in range(5):
+        s.add_window({"i": i}, cap=50)
+    s.log("x", "info", "y")
+    s.set("k", "v")
+    s.wipe()
+    assert s.window_count() == 0 and s.events() == [] and s.get("k") is None
+    if s.encrypted is False:
+        return
+    assert not (tmp_path / "wipe.key").exists()         # crypto-erase removed the key
+
+
+def test_store_export_summary_shows_no_text_stored(tmp_path):
+    s = Store(tmp_path / "exp.db")
+    s.add_window({"events_per_min": 1.0}, cap=50)
+    summ = s.export_summary()
+    assert summ["profile_windows"] == 1 and summ["stores_keystrokes_or_text"] is False
+    assert "no key identities" in summ["stored_fields"]
+
+
+# ---- robust recovery (item 2) ----
+def test_recovery_escalates_after_repeated_locks(tmp_path):
+    s = Store(tmp_path / "re.db")
+    eng = AuthEngine(s, cfg=cfg(MAX_FAILED_STEPUPS=3), population_path=POP)
+    c = Controller(eng, s, lock_fn=lambda logger=None: None)
+    for _ in range(3):
+        c._enforce({"components": {"overrides": ["automation"]}}, "critical", "bot")
+    assert c.escalated and any(e["kind"] == "recovery_escalation" for e in s.events())
+
+
+def test_scoring_error_does_not_crash_agent(tmp_path):
+    s = Store(tmp_path / "er.db")
+    eng = AuthEngine(s, cfg=cfg(), population_path=POP)
+    c = Controller(eng, s, lock_fn=lambda logger=None: None)
+    eng.score_window = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
+    d = c.process_window([{"t": 1, "type": "keydown"}], 0, 5000)
+    assert d["action"] == "monitor" and c.errors == 1           # degrades gracefully
+    assert any(e["kind"] == "score_error" for e in s.events())

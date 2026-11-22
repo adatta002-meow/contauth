@@ -20,6 +20,8 @@ import sys
 import time
 from pathlib import Path
 
+from contauth.agent.crypto import Vault
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS windows (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,14 +50,22 @@ def default_data_dir() -> Path:
 
 
 class Store:
-    def __init__(self, path: str | os.PathLike | None = None):
+    def __init__(self, path: str | os.PathLike | None = None, encrypt: bool = True):
         p = Path(path) if path else default_data_dir() / "agent.db"
         p.parent.mkdir(parents=True, exist_ok=True)
         self.path = str(p)
+        # Behavioural features and event details are encrypted at rest (AES-256-GCM).
+        # The key lives next to the database with owner-only permissions. See crypto.py
+        # for the (honestly stated) threat model.
+        self.vault = Vault(p.parent / (p.stem + ".key"), enabled=encrypt)
         self.db = sqlite3.connect(self.path)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
         self.db.commit()
+
+    @property
+    def encrypted(self) -> bool:
+        return self.vault.active
 
     # settings
     def get(self, key, default=None):
@@ -69,14 +79,15 @@ class Store:
 
     # enrollable windows
     def add_window(self, feats: dict, cap: int):
-        self.db.execute("INSERT INTO windows (features, created_at) VALUES (?,?)", (json.dumps(feats), time.time()))
+        blob = self.vault.encrypt(json.dumps(feats))
+        self.db.execute("INSERT INTO windows (features, created_at) VALUES (?,?)", (blob, time.time()))
         # keep only the most recent `cap` windows (rolling profile, handles drift)
         self.db.execute("DELETE FROM windows WHERE id NOT IN (SELECT id FROM windows ORDER BY id DESC LIMIT ?)", (cap,))
         self.db.commit()
 
     def windows(self, limit: int) -> list[dict]:
         rows = self.db.execute("SELECT features FROM windows ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
-        return [json.loads(r["features"]) for r in rows]
+        return [json.loads(self.vault.decrypt(r["features"])) for r in rows]
 
     def window_count(self) -> int:
         return self.db.execute("SELECT COUNT(*) FROM windows").fetchone()[0]
@@ -88,13 +99,51 @@ class Store:
     # events
     def log(self, kind: str, severity: str = "info", detail: str = ""):
         self.db.execute("INSERT INTO events (ts, kind, severity, detail) VALUES (?,?,?,?)",
-                        (time.time(), kind, severity, detail))
+                        (time.time(), kind, severity, self.vault.encrypt(detail)))
         self.db.execute("DELETE FROM events WHERE id NOT IN (SELECT id FROM events ORDER BY id DESC LIMIT 2000)")
         self.db.commit()
 
     def events(self, limit: int = 50) -> list[dict]:
         rows = self.db.execute("SELECT ts, kind, severity, detail FROM events ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
-        return [dict(r) for r in rows]
+        out = []
+        for r in rows:
+            d = dict(r)
+            d["detail"] = self.vault.decrypt(d.get("detail"))
+            out.append(d)
+        return out
+
+    # ---- user-controlled data: transparency + deletion ----
+    def export_summary(self) -> dict:
+        """What the agent is holding about the user — for a 'see my data' view. It
+        deliberately exposes counts and the schema, never raw keystrokes or text,
+        because none are stored. Feature windows are aggregates only."""
+        wrow = self.db.execute("SELECT COUNT(*) n, MIN(created_at) a, MAX(created_at) b FROM windows").fetchone()
+        erow = self.db.execute("SELECT COUNT(*) n FROM events").fetchone()
+        return {
+            "profile_windows": wrow["n"],
+            "oldest_window_utc": wrow["a"],
+            "newest_window_utc": wrow["b"],
+            "event_log_entries": erow["n"],
+            "encrypted_at_rest": self.encrypted,
+            "stores_keystrokes_or_text": False,
+            "stored_fields": "aggregated timing/rate features per window; no key identities, no characters, no text",
+            "db_path": self.path,
+        }
+
+    def wipe(self, crypto_erase: bool = True):
+        """Delete all of the user's data: profile windows, event log and settings.
+        With crypto_erase, also destroy the encryption key so any residual ciphertext
+        on disk or in backups is unrecoverable."""
+        self.db.execute("DELETE FROM windows")
+        self.db.execute("DELETE FROM events")
+        self.db.execute("DELETE FROM meta")
+        self.db.commit()
+        try:
+            self.db.execute("VACUUM")
+        except sqlite3.OperationalError:
+            pass
+        if crypto_erase:
+            self.vault.wipe_key()
 
     def close(self):
         self.db.close()

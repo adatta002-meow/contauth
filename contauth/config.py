@@ -47,3 +47,23 @@ class Config:
     SESSION_MAX_AGE_H = 8
     LOCK_MINUTES = _env("LOCK_MINUTES", 15, int)
     MAX_FAILED_STEPUPS = 3
+
+    # Sequential, multi-signal decision layer (agent only; see contauth/sequential.py).
+    # The agent accumulates per-window anomaly evidence into a 0-100 trust score
+    # instead of counting "N HIGH windows in a row": strong anomalies can lock within
+    # one window, isolated blips leak away, and every contribution is scaled by signal
+    # quality and model confidence so a thin or low-confidence window can't false-lock.
+    USE_TRUST_ACCUMULATOR = True
+    TRUST_PENALTY_GAIN = 0.6        # how fast above-threshold windows raise penalty
+    TRUST_RECOVERY = 0.5            # how fast clean windows bleed penalty back down
+    TRUST_STEPUP_BUDGET = 0.25      # penalty at which a behaviour step-up fires
+    TRUST_TERMINATE_BUDGET = 2.0    # penalty at which corroborated risk terminates
+    QUALITY_FULL_EVENTS = 60        # events for a full-quality window
+    CONFIDENCE_FLOOR = 0.4          # min model confidence (cold start / unseparable user)
+    CONFIDENCE_FULL_MARGIN = 0.35   # genuine-median − tau margin that counts as full confidence
+
+    # Anti-spoofing: replay / signal-quality gating (agent, deterministic).
+    REPLAY_MAX_SKEW_MS = 5000       # a window whose clock runs backwards > this is rejected
+    REPLAY_DUP_HISTORY = 16         # remember this many recent window fingerprints
+    MIN_QUALITY_TO_ENROLL = 0.5     # a window must be at least this rich to teach the profile
+    MIN_QUALITY_TO_SCORE = 0.2      # below this, observe only (never lock on it)

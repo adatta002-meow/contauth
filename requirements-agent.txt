@@ -2,5 +2,8 @@
 # Tkinter ships with the standard CPython installer on Windows and macOS; on Linux
 # install it from the system package manager (e.g. `sudo apt install python3-tk`).
 pynput==1.7.7
+# At-rest encryption of the local behavioural store (AES-256-GCM). The agent still
+# runs without it (store falls back to plaintext and says so), but it is recommended.
+cryptography>=42.0
 # Optional second factor (camera presence check). Only needed with --face:
 # opencv-python==4.11.0.86

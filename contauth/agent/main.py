@@ -154,6 +154,7 @@ def run_gui(args):
     cap = Capture()
     rnd = random.Random(args.seed)
     win = StatusWindow(controller, on_quit=lambda: (cap.stop(), store.close()))
+    win._simulate = bool(args.simulate)
     controller.logger = lambda k, s, d: win.add_log(k, s, d)
 
     if controller.monitor_only:
@@ -207,12 +208,53 @@ def main(argv=None):
     ap.add_argument("--windows", type=int, default=20, help="headless: how many windows to run")
     ap.add_argument("--bot-at", type=int, default=-1, help="headless: inject a bot window at this index")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--export", action="store_true", help="print what the agent stores about you (JSON) and exit")
+    ap.add_argument("--wipe", action="store_true", help="delete all your data (profile, events) and exit")
+    ap.add_argument("--yes", action="store_true", help="skip the confirmation prompt for --wipe")
     args = ap.parse_args(argv)
+    if args.export:
+        return run_export(args)
+    if args.wipe:
+        return run_wipe(args)
     if args.headless:
         args.simulate = True
         run_headless(args)
     else:
         run_gui(args)
+
+
+def run_export(args):
+    """User-controlled transparency: show exactly what is stored on this device."""
+    store = Store(args.data_dir)
+    summ = store.export_summary()
+    store.close()
+    print(json.dumps(summ, indent=2))
+    print("\nNo keystrokes, characters or text are ever stored — only aggregated timing "
+          "features per window. Run --wipe to delete everything.")
+    return 0
+
+
+def run_wipe(args):
+    """User-controlled deletion: erase the profile, event log and encryption key."""
+    store = Store(args.data_dir)
+    summ = store.export_summary()
+    print(f"This will permanently delete {summ['profile_windows']} profile window(s) and "
+          f"{summ['event_log_entries']} event(s) at {summ['db_path']},\nand destroy the encryption key "
+          f"so any residual ciphertext is unrecoverable.")
+    if not args.yes:
+        try:
+            if input("Type 'wipe' to confirm: ").strip().lower() != "wipe":
+                print("Cancelled.")
+                store.close()
+                return 1
+        except EOFError:
+            print("Cancelled (no confirmation).")
+            store.close()
+            return 1
+    store.wipe()
+    store.close()
+    print("Done. Your behavioural profile and history have been erased; enrollment restarts next launch.")
+    return 0
 
 
 if __name__ == "__main__":

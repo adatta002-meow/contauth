@@ -1,0 +1,131 @@
+{
+  "meta": {
+    "generated_utc": "2026-11-22 16:27 UTC",
+    "python": "Python 3.13.18",
+    "platform": "Linux-6.18.44-fc-v726-x86_64-with-glibc2.39"
+  },
+  "detection_accuracy": {
+    "available": true,
+    "dataset_sha256": "e6b279c4ed027a65",
+    "users": 10,
+    "models": {
+      "Logistic Regression": {
+        "accuracy": 0.7031007227850645,
+        "accuracy_std": 0.1670279867555444,
+        "far": 0.30465980419277733,
+        "far_std": 0.17478163932115345,
+        "frr": 0.21142796092796093,
+        "frr_std": 0.10363686491730745,
+        "eer": 0.24870498496186602,
+        "eer_std": 0.12346453335300038,
+        "roc_auc": 0.7951286142135805,
+        "roc_auc_std": 0.13929017782849246
+      },
+      "Random Forest": {
+        "accuracy": 0.8298853072127921,
+        "accuracy_std": 0.10620207788775364,
+        "far": 0.15694694906136353,
+        "far_std": 0.10174987512716781,
+        "frr": 0.42347171347171353,
+        "frr_std": 0.20474529970975766,
+        "eer": 0.26775387021683583,
+        "eer_std": 0.12514585528135824,
+        "roc_auc": 0.7859223548946741,
+        "roc_auc_std": 0.13492677191762958
+      },
+      "Isolation Forest": {
+        "accuracy": 0.3191255612560101,
+        "accuracy_std": 0.26114089571331306,
+        "far": 0.7189731280558579,
+        "far_std": 0.275900383348612,
+        "frr": 0.06185632885632886,
+        "frr_std": 0.037130015565305305,
+        "eer": 0.2851427737315435,
+        "eer_std": 0.10599790132186376,
+        "roc_auc": 0.7531069178669572,
+        "roc_auc_std": 0.11694701306862476
+      },
+      "One-Class SVM": {
+        "accuracy": 0.8103797257919829,
+        "accuracy_std": 0.12280747217108538,
+        "far": 0.1768231258503629,
+        "far_std": 0.1289976432209243,
+        "frr": 0.44529934879934874,
+        "frr_std": 0.12258104981048387,
+        "eer": 0.3108565328816987,
+        "eer_std": 0.08337953590491122,
+        "roc_auc": 0.6959562091605009,
+        "roc_auc_std": 0.08105408474966616
+      },
+      "Hybrid (RF+IF+OCSVM)": {
+        "accuracy": 0.8613287254968025,
+        "accuracy_std": 0.09123448026393846,
+        "far": 0.12119861093935277,
+        "far_std": 0.08717822691191521,
+        "frr": 0.4561308506308507,
+        "frr_std": 0.18270302182094075,
+        "eer": 0.25209166802011074,
+        "eer_std": 0.11766844791879111,
+        "roc_auc": 0.8023582703412779,
+        "roc_auc_std": 0.12223778026764395
+      },
+      "Tuned ET+LR vote (live model)": {
+        "accuracy": 0.7619427742385411,
+        "accuracy_std": 0.14629164815604867,
+        "far": 0.23803214404120157,
+        "far_std": 0.14970164163039498,
+        "frr": 0.2771672771672772,
+        "frr_std": 0.1153504564046487,
+        "eer": 0.25287284926225456,
+        "eer_std": 0.12901444788933084,
+        "roc_auc": 0.8072744454509868,
+        "roc_auc_std": 0.13733163203813414
+      }
+    },
+    "best_model": "Tuned ET+LR vote (live model)"
+  },
+  "latency": {
+    "cold_start_population_model": {
+      "n": 9,
+      "mean_ms": 24.711,
+      "p50_ms": 15.275,
+      "p95_ms": 96.496,
+      "max_ms": 96.496
+    },
+    "enrolled_personal_model": {
+      "n": 108,
+      "mean_ms": 13.752,
+      "p50_ms": 14.119,
+      "p95_ms": 17.029,
+      "max_ms": 19.482
+    },
+    "periodic_retrain": {
+      "n": 3,
+      "mean_ms": 1301.064,
+      "p50_ms": 1298.91,
+      "p95_ms": 1361.659,
+      "max_ms": 1361.659
+    }
+  },
+  "footprint": {
+    "available": true,
+    "windows": 200,
+    "wall_s": 8.48,
+    "rss_after_mb": 176.9,
+    "rss_growth_mb": 0.3,
+    "cpu_seconds": 8.37,
+    "cpu_ms_per_window": 41.85,
+    "cpu_percent_one_core": 98.7
+  },
+  "reliability": {
+    "windows": 300,
+    "errors": 0,
+    "error_rate": 0.0,
+    "enforcement_actions_on_genuine_stream": 0,
+    "false_lock_rate_on_genuine_stream": 0.0
+  },
+  "spoof_resistance": {
+    "quantified": false,
+    "reason": "no spoof/replay attack dataset; defences are unit-tested but unmeasured in the field"
+  }
+}

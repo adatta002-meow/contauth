@@ -52,7 +52,25 @@ ALL_FEATURES = BASE_FEATURES + EXTRA_FEATURES
 #   dwell  = how long a key is held  (key-down -> its key-up)
 #   flight = gap from releasing one key to pressing the next (key-up -> next key-down)
 KEYSTROKE_FEATURES = ["avg_dwell_ms", "std_dwell_ms", "avg_flight_ms", "std_flight_ms"]
-PERSONAL_FEATURES = ALL_FEATURES + KEYSTROKE_FEATURES
+
+# Speed-invariant "rhythm" features: dimensionless ratios and coefficients of
+# variation. If the user types faster, dwell/flight/inter-key intervals all shrink
+# together, so these barely move — unlike absolute rates (keys/min, ms), which swing.
+# A personal model built on these recognises the user across speeds, which stops a
+# fast-typing burst from reading as an impostor. All are live-capture only.
+#   dwell_ratio  = hold time as a share of the hold+gap cycle
+#   dwell_cv / flight_cv = regularity of hold / gap durations
+#   dwell_to_iki / flight_to_iki = hold / gap as a share of the inter-key interval
+RHYTHM_EXTRA = ["dwell_ratio", "dwell_cv", "flight_cv", "dwell_to_iki", "flight_to_iki"]
+PERSONAL_FEATURES = ALL_FEATURES + KEYSTROKE_FEATURES + RHYTHM_EXTRA
+
+# The scale-invariant subset the on-device personal model uses when RHYTHM_MODE is on.
+# Every column here is dimensionless, so a global change of pace does not move the score.
+RHYTHM_FEATURES = [
+    "cv_inter_key", "cv_mouse_speed", "modifier_key_ratio", "idle_time_ratio",
+    "keys_per_mouse_move", "clicks_per_mouse_move", "max_idle_gap_ratio",
+    "dwell_ratio", "dwell_cv", "flight_cv", "dwell_to_iki", "flight_to_iki",
+]
 
 # Columns used by every live model, in input order. Chosen by nested selection
 # (contauth/ml/tune.py): the 21-feature set won in all 5 outer splits.
@@ -164,6 +182,18 @@ def extract_window_features(events: list[dict], start_ms: float | None = None, e
     avg_spd = mean(speeds) if speeds else 0.0
     std_spd = pstdev(speeds) if len(speeds) > 1 else 0.0
 
+    # keystroke-timing summaries (live only)
+    adw = mean(dwell) if dwell else None
+    sdw = pstdev(dwell) if len(dwell) > 1 else None
+    afl = mean(flights) if flights else None
+    sfl = pstdev(flights) if len(flights) > 1 else None
+    # speed-invariant rhythm ratios (dimensionless; see RHYTHM_FEATURES)
+    dwell_ratio = (adw / (adw + afl)) if (adw is not None and afl is not None and (adw + afl) > 0) else None
+    dwell_cv = (sdw / adw) if (sdw is not None and adw) else None
+    flight_cv = (sfl / afl) if (sfl is not None and afl) else None
+    dwell_to_iki = (adw / avg_iki) if (adw is not None and avg_iki) else None
+    flight_to_iki = (afl / avg_iki) if (afl is not None and avg_iki) else None
+
     return {
         "cv_inter_key": _ratio(std_iki, avg_iki),
         "cv_mouse_speed": _ratio(std_spd, avg_spd),
@@ -197,10 +227,16 @@ def extract_window_features(events: list[dict], start_ms: float | None = None, e
         "idle_gap_count": len(gaps),
         "max_idle_gap_ms": max(gaps) if gaps else 0.0,
         # per-keystroke timing (personal model only; None when no typing / not captured)
-        "avg_dwell_ms": mean(dwell) if dwell else None,
-        "std_dwell_ms": pstdev(dwell) if len(dwell) > 1 else None,
-        "avg_flight_ms": mean(flights) if flights else None,
-        "std_flight_ms": pstdev(flights) if len(flights) > 1 else None,
+        "avg_dwell_ms": adw,
+        "std_dwell_ms": sdw,
+        "avg_flight_ms": afl,
+        "std_flight_ms": sfl,
+        # speed-invariant rhythm features (personal model; recognise the user across pace)
+        "dwell_ratio": dwell_ratio,
+        "dwell_cv": dwell_cv,
+        "flight_cv": flight_cv,
+        "dwell_to_iki": dwell_to_iki,
+        "flight_to_iki": flight_to_iki,
     }
 
 

@@ -69,6 +69,10 @@ class Config:
     # one window, isolated blips leak away, and every contribution is scaled by signal
     # quality and model confidence so a thin or low-confidence window can't false-lock.
     USE_TRUST_ACCUMULATOR = True
+    # Recognise the user by RHYTHM (dimensionless timing ratios) rather than raw speed,
+    # so a fast-typing burst is not mistaken for someone else. The on-device personal
+    # model scores on the speed-invariant RHYTHM_FEATURES when this is on.
+    RHYTHM_MODE = True
     TRUST_PENALTY_GAIN = 0.6        # how fast above-threshold windows raise penalty
     TRUST_RECOVERY = 0.5            # how fast clean windows bleed penalty back down
     TRUST_STEPUP_BUDGET = 0.25      # penalty at which a behaviour step-up fires

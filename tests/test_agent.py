@@ -347,8 +347,10 @@ def test_capture_ignores_autorepeat_for_dwell():
 
 
 def test_personal_feature_set_extends_base():
+    from contauth.features import RHYTHM_EXTRA
     assert all(f in PERSONAL_FEATURES for f in KEYSTROKE_FEATURES)
-    assert len(PERSONAL_FEATURES) == len(MODEL_FEATURES) + 4
+    assert all(f in PERSONAL_FEATURES for f in RHYTHM_EXTRA)
+    assert len(PERSONAL_FEATURES) == len(MODEL_FEATURES) + len(KEYSTROKE_FEATURES) + len(RHYTHM_EXTRA)
 
 
 def test_engine_personal_model_uses_keystroke_features(tmp_path):
@@ -612,3 +614,48 @@ def test_bot_still_terminates_during_adaptation(tmp_path):
     bot = [{"t": i * 20, "type": "mousemove", "x": 100 + 6 * i, "y": 300} for i in range(150)]
     d = eng.score_window(bot, 0, 5000)
     assert d["action"] == "terminate"                # deterministic threats are never suppressed
+
+
+# ---- rhythm-based recognition: speed-invariant features (fast-typing fix) ----
+from contauth.features import RHYTHM_FEATURES
+
+
+def _typed(rnd, t0, speed=1.0):
+    """A realistic typing+mouse window. speed<1 = faster (all timings scale together)."""
+    ev, t = [], float(t0)
+    for i in range(46):
+        t += rnd.randint(120, 200) * speed
+        ev.append({"t": t, "type": "keydown", "mod": i % 9 == 0})
+        hold = rnd.randint(60, 100) * speed
+        ev.append({"t": t + hold, "type": "keyup", "dwell": hold})
+    x = y = 500
+    for _ in range(50):
+        t += rnd.randint(15, 35) * speed; x += rnd.randint(-20, 20); y += rnd.randint(-15, 15)
+        ev.append({"t": t, "type": "mousemove", "x": x, "y": y})
+    for _ in range(3):
+        t += rnd.randint(500, 900) * speed; ev.append({"t": t, "type": "click"})
+    return ev, float(t0), t
+
+
+def test_rhythm_features_are_speed_invariant():
+    ev, s, e = _typed(random.Random(3), 0, 1.0)
+    evf, sf, ef = _typed(random.Random(3), 0, 0.5)          # same draws, typed 2x faster
+    f, ff = extract_window_features(ev, s, e), extract_window_features(evf, sf, ef)
+    for k in RHYTHM_FEATURES:
+        if f.get(k) is not None and ff.get(k) is not None:
+            assert abs(f[k] - ff[k]) <= 1e-6 + 0.02 * abs(f[k]), f"{k} not invariant"
+    # meanwhile absolute speed features move a lot
+    assert ff["typing_speed_keys_per_min"] > 1.6 * f["typing_speed_keys_per_min"]
+    assert ff["avg_inter_key_interval_ms"] < 0.7 * f["avg_inter_key_interval_ms"]
+
+
+def test_personal_model_recognises_fast_typing(tmp_path):
+    s = Store(tmp_path / "rh.db")
+    eng = AuthEngine(s, cfg=cfg(), population_path=POP)
+    for k in range(16):                                     # enrol at NORMAL speed
+        eng.score_window(*_typed(random.Random(100 + k), k * 6000, 1.0))
+    assert eng.prof is not None and eng.personal_cols == RHYTHM_FEATURES
+    # the SAME person now types fast — must still be recognised, not stepped up/locked
+    acts = [eng.score_window(*_typed(random.Random(500 + k), (30 + k) * 6000, 0.5))["action"]
+            for k in range(4)]
+    assert all(a in ("allow", "monitor") for a in acts)

@@ -20,7 +20,8 @@ import numpy as np
 
 from contauth.agent.store import Store
 from contauth.config import Config
-from contauth.features import MODEL_FEATURES, PERSONAL_FEATURES, extract_window_features, vectorize
+from contauth.features import (MODEL_FEATURES, PERSONAL_FEATURES, RHYTHM_FEATURES,
+                               extract_window_features, vectorize)
 from contauth.ml import models as M
 from contauth.policy import Signals, evaluate
 from contauth.sequential import TrustMonitor, model_confidence, signal_quality
@@ -32,9 +33,10 @@ def _trim(feats: dict) -> dict:
     """Store only model inputs + a few context counters; never raw events.
     PERSONAL_FEATURES includes the dwell/flight keystroke-timing features so the
     on-device personal model can use them; the population model uses MODEL_FEATURES."""
-    keep = set(PERSONAL_FEATURES) | {"total_events", "key_press_count", "mouse_movement_count",
-                                     "repeated_step_ratio", "avg_mouse_speed_px_s", "std_mouse_speed_px_s",
-                                     "std_inter_key_interval_ms", "events_per_min"}
+    keep = set(PERSONAL_FEATURES) | set(RHYTHM_FEATURES) | {
+        "total_events", "key_press_count", "mouse_movement_count",
+        "repeated_step_ratio", "avg_mouse_speed_px_s", "std_mouse_speed_px_s",
+        "std_inter_key_interval_ms", "events_per_min"}
     return {k: feats.get(k) for k in keep}
 
 
@@ -63,6 +65,10 @@ class AuthEngine:
         self.replays = 0
         self.low_quality_dropped = 0
         self._adapt_until = 0.0        # learn-and-don't-lock window after a sign-in
+        # the on-device personal model recognises the user by speed-invariant rhythm
+        # features when RHYTHM_MODE is on; the dataset-trained population model keeps
+        # the 21 dataset features (it has no raw keystroke timings to form ratios from)
+        self.personal_cols = RHYTHM_FEATURES if self.cfg.get("RHYTHM_MODE", True) else PERSONAL_FEATURES
         self._train_if_ready()
 
     # ---- models ----
@@ -72,8 +78,9 @@ class AuthEngine:
         return self._pop
 
     def _train_if_ready(self):
-        # Personal model uses the richer PERSONAL_FEATURES (base 21 + dwell/flight).
-        X = np.array([vectorize(f, PERSONAL_FEATURES)
+        # Personal model uses the speed-invariant rhythm features (or the full personal
+        # set if RHYTHM_MODE is off), so it recognises the user across typing speeds.
+        X = np.array([vectorize(f, self.personal_cols)
                       for f in self.store.windows(self.cfg["PROFILE_MAX_WINDOWS"])], dtype=float)
         if len(X) < self.cfg["ENROLL_WINDOWS"]:
             self.prof = None
@@ -118,8 +125,9 @@ class AuthEngine:
             # cold start: population model, base 21 features (the dataset's feature set)
             x = np.array([vectorize(feats, MODEL_FEATURES)], dtype=float)
             return float(self.population().score(x)[0]), "population", self.cfg["COLD_START_DAMPING"]
-        # personal model: richer feature set including dwell/flight
-        x = np.array([vectorize(feats, PERSONAL_FEATURES)], dtype=float)
+        # personal model: speed-invariant rhythm features (recognise the user by pace-
+        # independent timing shape, not raw speed)
+        x = np.array([vectorize(feats, self.personal_cols)], dtype=float)
         g = (float(self.prof["if"].score(x)[0]) + float(self.prof["ocsvm"].score(x)[0])) / 2
         return M.calibrated_genuineness(g, self.prof["tau"], self.prof["med"]), "personal", 1.0
 

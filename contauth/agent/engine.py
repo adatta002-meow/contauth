@@ -89,7 +89,8 @@ class AuthEngine:
             return None
         iso = M.OneClassScorer(M.isolation_forest()).fit(X, cv=5)
         oc = M.OneClassScorer(M.one_class_svm()).fit(X, cv=5)
-        g = (iso.oof_ + oc.oof_) / 2
+        w = self.cfg.get("PERSONAL_IF_WEIGHT", 0.6)    # IF outperforms OCSVM on real data
+        g = w * iso.oof_ + (1 - w) * oc.oof_
         self.prof = {"if": iso, "ocsvm": oc, "n": len(X),
                      "tau": float(np.quantile(g, self.cfg["ONECLASS_FRR"])),
                      "med": float(np.median(g)), "at": time.time()}
@@ -130,7 +131,8 @@ class AuthEngine:
         # personal model: speed-invariant rhythm features (recognise the user by pace-
         # independent timing shape, not raw speed)
         x = np.array([vectorize(feats, self.personal_cols)], dtype=float)
-        g = (float(self.prof["if"].score(x)[0]) + float(self.prof["ocsvm"].score(x)[0])) / 2
+        w = self.cfg.get("PERSONAL_IF_WEIGHT", 0.6)
+        g = w * float(self.prof["if"].score(x)[0]) + (1 - w) * float(self.prof["ocsvm"].score(x)[0])
         return M.calibrated_genuineness(g, self.prof["tau"], self.prof["med"]), "personal", 1.0
 
     # ---- scoring one window ----

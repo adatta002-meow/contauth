@@ -11,26 +11,30 @@ the Capstone report.
 | 1 | **Sign-in could be brute-forced** — the desktop password login had no attempt limit. | Failed-attempt tracking with a cooldown lockout after N tries (`AGENT_LOGIN_MAX_TRIES`, `AGENT_LOGIN_LOCKOUT_MIN`). A correct password clears it. |
 | 2 | **Profile poisoning via drift** — a sustained "mildly unusual" (MEDIUM) stream could keep widening the profile, so a different person could gradually overwrite it. | Anti-poisoning cap: only a bounded run of MEDIUM windows is absorbed before a clean LOW window is required again (`POISON_ADAPT_CAP`). |
 | 3 | **Stale trust across an idle gap** — trust and the post-login learning grace persisted if the operator walked away, so a different person who sat down inherited them. | Idle re-lock: after a long idle gap (`IDLE_RELOCK_MIN`) trust drops to a watchful state, the learning grace closes, and replay history clears, so whoever returns must re-prove at full sensitivity. |
+| 4 | **No raw-keystroke dataset to benchmark on** — the keystroke-dynamics work (dwell/flight, rhythm) could not be measured, only property-tested. | Added the **CMU Keystroke Dynamics Benchmark** (51 subjects, 400 reps, raw per-key timings; `data/cmu/`, provenance + SHA-256 + source link). Built `contauth/ml/keystroke_benchmark.py`, which reports real FAR/FRR/EER/AUC and reproduces the paper's published 9.6% EER (sanity check). |
+| 5 | **Keystroke accuracy only measured on leaky session-level data (~25% EER)** | On the clean CMU data the agent's Isolation Forest model scores **EER 8.52% / ROC-AUC 0.965**; Scaled-Manhattan 9.60% (matches literature). Hold, digraph and flight features each contribute, with the full set best — the evidence for the keystroke-feature design. |
+| 6 | **Ensemble blended Isolation Forest and One-Class SVM 50/50** despite IF being stronger. | The benchmark shows IF (8.5% EER) beats OCSVM (10.7%), so the personal model now weights IF more (`PERSONAL_IF_WEIGHT`). |
 
-All three are covered by unit tests (`tests/test_agent.py`).
+All six are covered by tests (`tests/test_agent.py`) and/or a reproducible benchmark
+(`reports/keystroke_benchmark.md`).
 
 ## Known remaining limitations (not solvable in code alone)
 
-- **Detection is statistical, not perfect.** On the real Capstone data the behavioural
-  model separates genuine vs impostor users at ROC-AUC ≈ 0.80 / EER ≈ 25% per window —
-  strong for some users, near chance for one. It is a second layer, not a hard gate.
-  *To improve:* needs a richer dataset (see below), digraph/key-pair features, and mouse
-  trajectory dynamics. Can't be benchmarked on the current dataset.
+- **Keystroke accuracy is now measured, but is still probabilistic.** On the clean CMU
+  benchmark the model reaches EER ≈ 8.5% / AUC ≈ 0.965 — strong, and in line with the
+  published literature, but not a perfect hard gate. The live free-text agent will run
+  a bit higher than this fixed-text benchmark. *To push further:* fuse mouse-trajectory
+  dynamics and free-text digraph features.
 
-- **Can't quantify the keystroke-rhythm or spoof-resistance gains.** The Capstone dataset
-  is session-level with no raw per-keystroke events and no spoof/attack samples, so the
-  dwell/flight, rhythm-invariance and anti-spoofing work is validated by property tests,
-  not by a before/after FAR/FRR. *To solve:* the CMU Keystroke Dynamics Benchmark
-  (raw key timings) for keystroke accuracy; a labelled spoof/replay set for spoofing.
+- **Spoof resistance still unquantified.** The replay / signal-quality / automation
+  defences are unit-tested, but their real false-accept rate against live presentation
+  or replay attacks needs a labelled spoof/replay dataset, which we do not have. The
+  report states this instead of inventing a number.
 
-- **Dataset has a recording-condition leak.** Parts of the source data are trivially
-  separable by acquisition artefacts rather than behaviour, which inflates any metric
-  computed on it. *To solve:* collect or obtain a cleaner, single-condition dataset.
+- **Free-text vs fixed-text gap.** The CMU benchmark is a fixed password; the live agent
+  monitors free typing. The benchmark validates the method, detector choice and feature
+  groups on real data, but a free-text multi-user collection would be needed to put an
+  exact number on the *live* agent. *To solve:* collect a consented free-text dataset.
 
 - **Single operator per device.** The agent verifies "is this the enrolled owner?",
   not "which of several enrolled users is this". *To solve:* multi-profile enrolment and

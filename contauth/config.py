@@ -73,6 +73,10 @@ class Config:
     # so a fast-typing burst is not mistaken for someone else. The on-device personal
     # model scores on the speed-invariant RHYTHM_FEATURES when this is on.
     RHYTHM_MODE = True
+    # The CMU keystroke benchmark (reports/keystroke_benchmark.md) shows Isolation Forest
+    # outperforms One-Class SVM on real data (EER 8.5% vs 10.7%), so the personal model
+    # weights the Isolation Forest member more than an equal blend.
+    PERSONAL_IF_WEIGHT = 0.6
     TRUST_ENTER = 50               # risk above which a window adds to the penalty (lower = catches a mismatch sooner)
     TRUST_PENALTY_GAIN = 0.8       # how fast above-threshold windows raise penalty
     TRUST_RECOVERY = 0.5           # how fast clean windows bleed penalty back down

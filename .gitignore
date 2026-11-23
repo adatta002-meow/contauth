@@ -7,3 +7,6 @@ build/
 dist/
 *.spec.bak
 agent-config.json
+
+# CMU dataset (download via scripts/get_cmu_dataset.sh)
+data/cmu/*.csv

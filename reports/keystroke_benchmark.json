@@ -1,0 +1,60 @@
+{
+  "dataset": {
+    "name": "CMU DSL-StrongPasswordData",
+    "subjects": 51,
+    "reps_per_subject": 400,
+    "sha256": "b11d23538b1865fa6ecf4e8b78567caa312e9c1027604bb022fcc6ad7eaa7a33",
+    "source": "https://www.cs.cmu.edu/~keystroke/"
+  },
+  "protocol": "train 200 genuine reps; test 200 genuine + 5 reps x 50 impostors; per-subject EER/AUC averaged",
+  "detectors_all_features": {
+    "Euclidean": {
+      "mean_eer": 0.1705098039215686,
+      "std_eer": 0.0941678981454828,
+      "mean_auc": 0.8793352941176469
+    },
+    "Manhattan": {
+      "mean_eer": 0.15285294117647055,
+      "std_eer": 0.09170938188998767,
+      "mean_auc": 0.9026227450980392
+    },
+    "Scaled-Manhattan": {
+      "mean_eer": 0.09600000000000002,
+      "std_eer": 0.06869183814290443,
+      "mean_auc": 0.9537698039215685
+    },
+    "Mahalanobis": {
+      "mean_eer": 0.10998039215686274,
+      "std_eer": 0.06387832803074198,
+      "mean_auc": 0.9461113725490197
+    },
+    "One-Class SVM": {
+      "mean_eer": 0.10672549019607842,
+      "std_eer": 0.07142755233523577,
+      "mean_auc": 0.9432766666666665
+    },
+    "Isolation Forest": {
+      "mean_eer": 0.08521568627450982,
+      "std_eer": 0.06468568460761993,
+      "mean_auc": 0.9651945098039215
+    }
+  },
+  "scaled_manhattan_by_feature_group": {
+    "hold": {
+      "mean_eer": 0.15342156862745096,
+      "std_eer": 0.10732511413005628,
+      "mean_auc": 0.9095992156862746
+    },
+    "digraph": {
+      "mean_eer": 0.15063725490196078,
+      "std_eer": 0.07851233688691751,
+      "mean_auc": 0.9055992156862746
+    },
+    "flight": {
+      "mean_eer": 0.15906862745098038,
+      "std_eer": 0.0913103423693412,
+      "mean_auc": 0.8974090196078431
+    }
+  },
+  "best_detector": "Isolation Forest"
+}

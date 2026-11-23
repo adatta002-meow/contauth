@@ -127,3 +127,10 @@ class TrustMonitor:
     def recover(self):
         """After a successful re-auth: clear the accumulated penalty and restore trust."""
         self.s = TrustState()
+
+    def watchful(self):
+        """Drop to a cautious state (not fully trusted) — used when activity resumes
+        after a long idle gap, so the returning operator is below the drift-enrollment
+        bar and must re-prove with clean windows before the profile adapts to them."""
+        self.s = TrustState(penalty=0.4 * self.stepup_budget)
+        self.s.trust = self._trust_pct()

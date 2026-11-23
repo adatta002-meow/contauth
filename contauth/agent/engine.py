@@ -65,6 +65,8 @@ class AuthEngine:
         self.replays = 0
         self.low_quality_dropped = 0
         self._adapt_until = 0.0        # learn-and-don't-lock window after a sign-in
+        self._adaptive_streak = 0      # consecutive MEDIUM windows absorbed (anti-poisoning cap)
+        self._last_activity = None     # wall time of the last real-activity window (idle detection)
         # the on-device personal model recognises the user by speed-invariant rhythm
         # features when RHYTHM_MODE is on; the dataset-trained population model keeps
         # the 21 dataset features (it has no raw keystroke timings to form ratios from)
@@ -135,6 +137,21 @@ class AuthEngine:
     def score_window(self, events: list[dict], t0: float, t1: float) -> dict:
         feats = extract_window_features(events, t0, t1) or {"total_events": 0, "window_duration_ms": t1 - t0}
         self.quality = quality = signal_quality(feats, self.cfg)
+
+        # Idle re-lock: if activity resumes after a long gap, the person who sat back down
+        # may not be the one who left. Drop any lingering trust and the post-login learning
+        # grace so whoever is here now has to re-prove themselves at full sensitivity.
+        now = time.time()
+        idle_min = self.cfg.get("IDLE_RELOCK_MIN")
+        if (self._last_activity is not None and idle_min
+                and (now - self._last_activity) > idle_min * 60):
+            self._adapt_until = 0.0
+            self._adaptive_streak = 0
+            self._recent.clear()
+            if self.trust is not None:
+                self.trust.watchful()
+            self.store.log("resumed_after_idle", "warning",
+                           f"activity resumed after {int((now - self._last_activity) / 60)} min idle")
 
         # Anti-spoofing: reject replayed/tampered windows before they can score or enroll.
         replay = self._replay_check(feats, t0, t1)
@@ -221,17 +238,28 @@ class AuthEngine:
         # or while trust is high — this is how the profile learns the user's fast typing
         # instead of rejecting it. Overrides, replays and thin windows never enroll.
         mild = d["tier"] in ("LOW", "MEDIUM")
+        low_clean = d["tier"] == "LOW" and d["enrollable"]
         trusted_now = self.trust is not None and self.trust.s.trust >= self.cfg.get("DRIFT_TRUST_MIN", 75)
+        # Anti-poisoning cap: absorb only a bounded run of MEDIUM windows before a clean
+        # LOW window is required again, so a sustained drift (possibly a different person)
+        # can't keep overwriting the profile.
+        under_cap = self._adaptive_streak < self.cfg.get("POISON_ADAPT_CAP", 8)
         adaptive_enroll = (self.cfg.get("ADAPT_ENROLL_MEDIUM", True) and enough and mild
-                           and not overrides and (adapting or trusted_now))
+                           and not overrides and (adapting or trusted_now) and under_cap)
         enroll_ok = ((d["enrollable"] or adaptive_enroll)
                      and quality >= self.cfg.get("MIN_QUALITY_TO_ENROLL", 0.5) and replay is None)
         if enroll_ok:
             self.store.add_window(_trim(feats), self.cfg["PROFILE_MAX_WINDOWS"])
             self.enrolled = self.store.window_count()
+            if low_clean:
+                self._adaptive_streak = 0           # a clean window resets the poisoning budget
+            elif adaptive_enroll and d["tier"] == "MEDIUM":
+                self._adaptive_streak += 1
             trained = self._maybe_retrain()
             if trained:
                 d["profile_trained"] = trained["n"]
+        if feats.get("total_events", 0) >= self.cfg["MIN_EVENTS_PER_WINDOW"]:
+            self._last_activity = now               # real activity seen; reset the idle clock
         return d
 
     def _dropped(self, feats: dict, model: str, reason: str) -> dict:

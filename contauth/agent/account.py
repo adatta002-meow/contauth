@@ -19,6 +19,8 @@ import time
 PBKDF_ITERS = 120_000
 CODE_TTL_S = 600
 MAX_CODE_ATTEMPTS = 5
+LOGIN_MAX_TRIES = 5
+LOGIN_LOCKOUT_S = 300
 
 
 def _hash(value: str, salt_hex: str) -> str:
@@ -50,6 +52,25 @@ def register(store, email: str, password: str) -> dict:
 def check_password(store, password: str) -> bool:
     a = store.get("account")
     return bool(a) and secrets.compare_digest(_hash(password, a["salt"]), a["hash"])
+
+
+def login_locked_for(store) -> float:
+    """Seconds remaining on a brute-force lockout (0 if not locked)."""
+    st = store.get("login_state") or {}
+    return max(0.0, st.get("locked_until", 0) - time.time())
+
+
+def record_login_result(store, ok: bool, max_tries: int = LOGIN_MAX_TRIES, lockout_s: float = LOGIN_LOCKOUT_S):
+    """Track failed password attempts and lock the sign-in for a cooldown after too
+    many, so the local password can't be brute-forced."""
+    if ok:
+        store.set("login_state", {"fails": 0, "locked_until": 0})
+        return
+    st = store.get("login_state") or {"fails": 0, "locked_until": 0}
+    st["fails"] = st.get("fails", 0) + 1
+    if st["fails"] >= max_tries:
+        st = {"fails": 0, "locked_until": time.time() + lockout_s}
+    store.set("login_state", st)
 
 
 def set_verified(store):

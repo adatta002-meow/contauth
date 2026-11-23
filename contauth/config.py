@@ -98,6 +98,12 @@ class Config:
     ADAPT_AFTER_AUTH_MIN = _env("ADAPT_AFTER_AUTH_MIN", 2, float)   # minutes of learn-and-don't-lock after a sign-in
     ADAPT_ENROLL_MEDIUM = True       # let MEDIUM, clean windows widen the profile
     DRIFT_TRUST_MIN = 75             # trust score above which MEDIUM windows may enroll
+    POISON_ADAPT_CAP = 8             # max MEDIUM windows absorbed in a row before a clean LOW is required (anti-poisoning)
+    IDLE_RELOCK_MIN = _env("IDLE_RELOCK_MIN", 10, float)   # after this idle gap, drop trust/adaptation so whoever returns must re-prove
+
+    # Desktop sign-in brute-force protection
+    AGENT_LOGIN_MAX_TRIES = _env("AGENT_LOGIN_MAX_TRIES", 5, int)
+    AGENT_LOGIN_LOCKOUT_MIN = _env("AGENT_LOGIN_LOCKOUT_MIN", 5, float)
 
     # Anti-spoofing: replay / signal-quality gating (agent, deterministic).
     REPLAY_MAX_SKEW_MS = 5000       # a window whose clock runs backwards > this is rejected

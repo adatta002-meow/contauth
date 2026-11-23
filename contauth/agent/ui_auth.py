@@ -145,12 +145,21 @@ class AuthWindow:
         self.e_pw.bind("<Return>", lambda e: self._do_login())
 
     def _do_login(self):
+        rem = account.login_locked_for(self.store)
+        if rem > 0:
+            self._err_lbl.config(text=f"Too many wrong passwords. Try again in ~{int(rem // 60) + 1} min.")
+            return
         if account.check_password(self.store, self.e_pw.get()):
+            account.record_login_result(self.store, True)
             self.store.log("login_success", "info", "operator signed in")
             self._success()
         else:
+            account.record_login_result(self.store, False,
+                                        self.cfg.get("AGENT_LOGIN_MAX_TRIES", 5),
+                                        self.cfg.get("AGENT_LOGIN_LOCKOUT_MIN", 5) * 60)
             self.store.log("login_failed", "warning", "wrong password")
-            self._err_lbl.config(text="Wrong password.")
+            rem = account.login_locked_for(self.store)
+            self._err_lbl.config(text="Wrong password." + (f" Locked for ~{int(rem // 60) + 1} min." if rem > 0 else ""))
 
     # ---- exit ----
     def _success(self):

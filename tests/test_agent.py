@@ -661,3 +661,41 @@ def test_personal_model_recognises_fast_typing(tmp_path):
     acts = [eng.score_window(*_typed(random.Random(500 + k), (30 + k) * 6000, 0.5))["action"]
             for k in range(4)]
     assert all(a in ("allow", "monitor") for a in acts)
+
+
+# ---- hardening: limitations found and fixed ----
+def test_login_lockout_blocks_brute_force(tmp_path):
+    s = Store(tmp_path / "lk.db")
+    acct.register(s, "x@gmail.com", "correct horse")
+    assert acct.login_locked_for(s) == 0
+    for _ in range(5):                                   # 5 wrong tries
+        acct.record_login_result(s, False, 5, 300)
+    assert acct.login_locked_for(s) > 0                  # now locked out
+    acct.record_login_result(s, True)                    # a success clears the lockout
+    assert acct.login_locked_for(s) == 0
+
+
+def test_adaptive_enrollment_is_capped_against_poisoning(tmp_path):
+    s = Store(tmp_path / "pc.db")
+    eng = AuthEngine(s, cfg=cfg(POISON_ADAPT_CAP=4), population_path=POP)
+    eng.prof = {"n": 20, "tau": 0.1, "med": 0.65}; eng.confidence = 0.9
+    eng.note_authenticated(); eng.ewma = 45.0
+    eng.genuineness = lambda feats: (0.45, "personal", 1.0)   # MEDIUM (clean) every window
+    before = s.window_count()
+    for k in range(12):
+        eng.score_window(*human(random.Random(k), k * 5000))
+    assert s.window_count() - before == 4                # absorption capped at POISON_ADAPT_CAP
+
+
+def test_idle_resume_closes_adaptation_grace(tmp_path):
+    import time as _t
+    s = Store(tmp_path / "id.db")
+    eng = AuthEngine(s, cfg=cfg(IDLE_RELOCK_MIN=10), population_path=POP)
+    eng.prof = {"n": 20, "tau": 0.1, "med": 0.65}; eng.confidence = 0.9
+    eng.note_authenticated()
+    assert eng.adapting() is True
+    eng._last_activity = _t.time() - 20 * 60             # 20 minutes idle
+    eng.genuineness = lambda feats: (0.9, "personal", 1.0)
+    eng.score_window(*human(random.Random(1), 0))
+    assert eng.adapting() is False                       # post-login grace dropped
+    assert any(e["kind"] == "resumed_after_idle" for e in s.events())
